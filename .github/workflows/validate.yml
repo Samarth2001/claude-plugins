@@ -1,0 +1,33 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate marketplace
+        run: claude plugin validate .
+      - name: Validate and test each plugin
+        run: |
+          set -e
+          for dir in plugins/*/; do
+            echo "::group::$dir"
+            claude plugin validate "$dir"
+            if find "$dir" -name '*.test.ts' -o -name '*.test.tsx' | grep -q .; then
+              claude plugin test "$dir"
+            fi
+            echo "::endgroup::"
+          done
