@@ -36,18 +36,27 @@ const start = { cwd: '/', surface: 'terminal', isInteractive: true } as const
 const text = async (ui: { findAll: (q: { type: 'Text' }) => Promise<{ text?: string }[]> }) =>
   (await ui.findAll({ type: 'Text' })).map(t => t.text ?? '').join('')
 
-test('idle band shows the companion and every stat', async ($, on) => {
+test('idle band shows a quiet face and the essentials', async ($, on) => {
   engine(on)
   await $.session.start(start)
-  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  const ui = await $.ui.mount({ ...BAND(false, 120), surface: 'terminal' })
   const line = await text(ui)
-  expect(line).toContain('(•◡•)')
+  expect(line).toContain('◦‿◦')
   expect(line).toContain('ready')
-  expect(line).toContain('38%')
-  expect(line).toContain('380.0k/1M')
+  expect(line).toContain('ctx 38%')
   expect(line).toContain('5h 23%')
-  expect(line).toContain('7d 81%')
+  expect(line).toContain('7d 81%') // a hot limit always shows
   expect(line).toContain('$2.41')
+  expect(line).not.toContain('380.0k/1M')
+  expect(line).not.toContain('opus-5-5')
+})
+
+test('a wide band adds tokens and the model', async ($, on) => {
+  engine(on)
+  await $.session.start(start)
+  const ui = await $.ui.mount({ ...BAND(false, 160), surface: 'terminal' })
+  const line = await text(ui)
+  expect(line).toContain('380.0k/1M')
   expect(line).toContain('opus-5-5')
 })
 
@@ -83,6 +92,7 @@ test('acts out the running tool, counts it, then celebrates', async ($, on) => {
   const after = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
   const line = await text(after)
   expect(line).toContain('done')
+  expect(line).toContain('◠‿◠')
   expect(line).toContain('1 files edited')
 })
 
@@ -93,7 +103,9 @@ test('a failed tool makes it flinch', async ($, on) => {
   await $.prompt.submit({ text: 'go' } as never)
   await $.tool.call({ tool: 'Bash', command: 'false' } as never)
   const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-  expect(await text(ui)).toContain('(°□°)')
+  const line = await text(ui)
+  expect(line).toContain('◦⌒◦ !')
+  expect(line).toContain('that failed')
 })
 
 test('the face animates while working', async ($, on) => {
@@ -102,7 +114,7 @@ test('the face animates while working', async ($, on) => {
   await $.prompt.submit({ text: 'go' } as never)
   const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
   const before = await text(ui)
-  await clock.advance(150)
+  await clock.advance(400)
   expect(await text(ui)).not.toBe(before)
 })
 
@@ -113,11 +125,25 @@ test('near-full context asks for /compact', async ($, on) => {
   expect(await text(ui)).toContain('/compact')
 })
 
-test('narrow band keeps the essentials', async ($, on) => {
-  engine(on)
+test('narrow band keeps only context, 5h, cost and hot limits', async ($, on) => {
+  engine(on, 100_000)
   await $.session.start(start)
   const ui = await $.ui.mount({ ...BAND(false, 80), surface: 'terminal' })
   const line = await text(ui)
-  expect(line).toContain('38%')
+  expect(line).toContain('ctx 10%')
+  expect(line).toContain('5h 23%')
+  expect(line).toContain('7d 81%')
+  expect(line).not.toContain('↻')
   expect(line).not.toContain('380.0k/1M')
+})
+
+test('color is only used for warnings', async ($, on) => {
+  engine(on, 800_000)
+  await $.session.start(start)
+  const ui = await $.ui.mount({ ...BAND(false, 120), surface: 'terminal' })
+  const texts = await ui.findAll({ type: 'Text' })
+  const colored = texts.filter(t => (t as { props?: { color?: string } }).props?.color !== undefined)
+  const warm = colored.map(t => t.text).join('')
+  expect(warm).toContain('80%')
+  expect(warm).not.toContain('23%')
 })

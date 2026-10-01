@@ -1,5 +1,6 @@
-// The companion's look for each mood: text frames for the terminal and an
-// animated SVG (SMIL) for surfaces that draw SVG.
+// The companion's look for each mood: a quiet glyph face for the terminal and a
+// small animated pebble (SVG, SMIL) for surfaces that draw SVG. It stays grey and
+// still; only the eyes and one small prop change, and color means a warning.
 
 export type Mood =
   | 'idle'
@@ -15,144 +16,163 @@ export type Mood =
   | 'error'
   | 'full'
 
-export const FACE_WIDTH = 11
+// Face (3 cells) + space + prop (up to 3 cells). Every glyph is single-width.
+export const FACE_WIDTH = 7
 
-const FACES: Record<Mood, string[]> = {
-  idle: ['(•◡•)', '(•◡•)', '(•◡•)', '(•◡•)', '(-◡-)'],
-  sleeping: ['(-◡-) z', '(-◡-) zZ', '(-◡-) zZz', '(-◡-)'],
-  thinking: ['(•_• ) ·', '( •_•) ··', '(•_• ) ···', '( •_•)'],
-  reading: ['(o_o)>', '(o_o) >', '(o_o)  >', '(o_o)   >'],
-  editing: ['(•_•)✎', '(•_•) ✎', '(•_•)  ✎', '(•_•) ✎'],
-  running: ['ᕕ(•_•)ᕗ', 'ᕙ(•_•)ᕗ', 'ᕕ(•_•)ᕤ', 'ᕙ(•_•)ᕤ'],
-  browsing: ['(•_•))', '(•_•)))', '(•_•))))', '(•_•)'],
-  delegating: ['(•_•)', '(•_•)→(·)', '(•_•) (•_•)', '(•_•)→(·)'],
-  working: ['(•_•)⚙', '(•_•)✲', '(•_•)⚙', '(•_•)✲'],
-  done: ['\\(^◡^)/', '(^◡^) ✦', '\\(^◡^)/ ✧', '(^◡^)'],
-  error: ['(°□°)!', '(°□°) !', '(°□°)!', '(°□°)'],
-  full: ['(×◡×)', '(×_×)', '(×◡×)', '(×_×)'],
+const EYES: Partial<Record<Mood, string>> = {
+  sleeping: '‒‿‒',
+  done: '◠‿◠',
+  error: '◦⌒◦',
+  full: '◦⌒◦',
 }
 
-export function face(mood: Mood, frame: number, isSweating: boolean): string {
-  const frames = FACES[mood]
-  let out = frames[frame % frames.length] ?? frames[0] ?? ''
-  if (isSweating) out = out.replace(')', ';)')
-  return out.padEnd(FACE_WIDTH)
+const PROPS: Record<Mood, string[]> = {
+  idle: [''],
+  sleeping: ['ᶻ', ' ᶻ', '  ᶻ', ''],
+  thinking: ['·', '··', '···', ''],
+  reading: ['⌕', ' ⌕', '  ⌕', ' ⌕'],
+  editing: ['✎', ' ✎', '  ✎', ' ✎'],
+  running: ['›', '››', '›››', ''],
+  browsing: ['◜', '◝', '◞', '◟'],
+  delegating: ['⇢', ' ⇢', '  ⇢', ''],
+  working: ['◴', '◷', '◶', '◵'],
+  done: ['✧', '⋆', '✧', '·'],
+  error: ['!'],
+  full: ['!'],
 }
 
-// Body color follows how full the context window is.
-export function bodyColor(percent: number): string {
-  if (percent >= 90) return '#E5484D'
-  if (percent >= 75) return '#D6409F'
-  if (percent >= 50) return '#E2A336'
-  return '#4C9AFF'
+// One blink every 16 idle frames.
+const BLINK_EVERY = 16
+
+export function face(mood: Mood, frame: number): string {
+  let eyes = EYES[mood] ?? '◦‿◦'
+  if (mood === 'idle' && frame % BLINK_EVERY === BLINK_EVERY - 1) eyes = '‒‿‒'
+  const props = PROPS[mood]
+  const prop = props[frame % props.length] ?? ''
+  return `${eyes} ${prop}`.padEnd(FACE_WIDTH)
 }
 
-const blink = `<animate attributeName="ry" values="2.4;2.4;0.3;2.4" keyTimes="0;0.9;0.95;1" dur="4s" repeatCount="indefinite"/>`
-
-function eyes(dx: string, extra = ''): string {
-  return `<g>${extra}<ellipse cx="13" cy="15" rx="1.8" ry="2.4" fill="#fff">${blink}</ellipse><ellipse cx="21" cy="15" rx="1.8" ry="2.4" fill="#fff">${blink}</ellipse>${dx}</g>`
+// Grey by default; amber from 75% context, red from 90% or on an error.
+export function tone(percent: number, mood: Mood): 'calm' | 'warn' | 'alarm' {
+  if (mood === 'error' || mood === 'full' || percent >= 90) return 'alarm'
+  if (percent >= 75) return 'warn'
+  return 'calm'
 }
 
-function lookAround(dur: string): string {
-  return `<animateTransform attributeName="transform" type="translate" values="-1.5 0;1.5 0;-1.5 0" dur="${dur}" repeatCount="indefinite"/>`
+const BODY = { calm: '#7C8494', warn: '#C9963F', alarm: '#D0656E' } as const
+const INK = '#7C8494'
+const EYE = '#F4F5F7'
+
+const loop = (attr: string, values: string, dur: string, begin = '0s') =>
+  `<animate attributeName="${attr}" values="${values}" dur="${dur}" begin="${begin}" repeatCount="indefinite"/>`
+
+const blink = `<animate attributeName="ry" values="1.9;1.9;0.2;1.9" keyTimes="0;0.94;0.97;1" dur="5s" repeatCount="indefinite"/>`
+
+function eyes(glance = ''): string {
+  return (
+    `<g>${glance}` +
+    `<ellipse cx="11" cy="11" rx="1.4" ry="1.9" fill="${EYE}">${blink}</ellipse>` +
+    `<ellipse cx="17" cy="11" rx="1.4" ry="1.9" fill="${EYE}">${blink}</ellipse></g>`
+  )
 }
 
-// One SVG per mood, 64x32. Animation runs in the surface, so it needs no redraws.
-export function svg(mood: Mood, color: string, isSweating: boolean): string {
-  const breathe = `<animateTransform attributeName="transform" type="scale" additive="sum" values="1 1;1.03 0.97;1 1" dur="3s" repeatCount="indefinite"/>`
-  const bounce = `<animateTransform attributeName="transform" type="translate" values="0 0;0 -3;0 0" dur="0.45s" repeatCount="indefinite"/>`
-  const hop = `<animateTransform attributeName="transform" type="translate" values="0 0;0 -5;0 0;0 0" dur="0.8s" repeatCount="indefinite"/>`
-  const shake = `<animateTransform attributeName="transform" type="translate" values="0 0;-1.5 0;1.5 0;0 0" dur="0.25s" repeatCount="indefinite"/>`
+const glance = (dur: string) =>
+  `<animateTransform attributeName="transform" type="translate" values="-1 0;1 0;-1 0" dur="${dur}" repeatCount="indefinite"/>`
 
-  let bodyMotion = breathe
-  let face = eyes('')
-  let props = ''
+// A hairline stroke, optionally with attributes and animation children.
+function line(d: string, { stroke = INK, attrs = '', children = '' } = {}): string {
+  const open = `<path d="${d}" fill="none" stroke="${stroke}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"${attrs}`
+  return children ? `${open}>${children}</path>` : `${open}/>`
+}
+
+// One SVG per mood, 48x22. Animation runs in the surface, so it needs no redraws.
+export function svg(mood: Mood, percent: number): string {
+  const body = BODY[tone(percent, mood)]
+  let breathe = '4s'
+  let face = eyes()
+  let prop = ''
 
   switch (mood) {
     case 'sleeping':
-      face = `<path d="M11 15h4M19 15h4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`
-      props = [0, 1, 2]
+      breathe = '6s'
+      face = line('M9.5 11.5h3M15.5 11.5h3', { stroke: EYE })
+      prop = [0, 1]
         .map(
           i =>
-            `<text x="34" y="14" font-size="${7 + i}" font-family="sans-serif" fill="currentColor" opacity="0">z<animate attributeName="y" values="16;4" dur="3s" begin="${i}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.9;0" dur="3s" begin="${i}s" repeatCount="indefinite"/></text>`,
+            `<text x="30" y="10" font-size="${6 + i}" font-family="sans-serif" fill="${INK}" opacity="0">z` +
+            loop('y', '13;3', '4s', `${i * 2}s`) +
+            loop('opacity', '0;0.8;0', '4s', `${i * 2}s`) +
+            `</text>`,
         )
         .join('')
       break
     case 'thinking':
-      face = eyes(lookAround('2s'))
-      props = [0, 1, 2]
-        .map(
-          i =>
-            `<circle cx="${38 + i * 6}" cy="10" r="2" fill="currentColor" opacity="0.2"><animate attributeName="opacity" values="0.2;1;0.2" dur="1.2s" begin="${i * 0.2}s" repeatCount="indefinite"/></circle>`,
-        )
+      face = eyes(glance('3s'))
+      prop = [0, 1, 2]
+        .map(i => `<circle cx="${31 + i * 4}" cy="11" r="1.1" fill="${INK}" opacity="0.25">${loop('opacity', '0.25;0.9;0.25', '1.6s', `${i * 0.25}s`)}</circle>`)
         .join('')
       break
     case 'reading':
-      face = eyes(lookAround('0.8s'))
-      props = `<rect x="38" y="8" width="16" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="41" y="12" width="10" height="1.6" fill="currentColor"><animate attributeName="y" values="12;22;12" dur="1.6s" repeatCount="indefinite"/></rect>`
+      face = eyes(glance('1.6s'))
+      prop =
+        `<g>${line('M34 13.5l3 3')}<circle cx="32" cy="11.5" r="2.8" fill="none" stroke="${INK}" stroke-width="1.2"/>` +
+        `<animateTransform attributeName="transform" type="translate" values="-2 0;3 0;-2 0" dur="1.6s" repeatCount="indefinite"/></g>`
       break
     case 'editing':
-      props = `<path d="M38 26h18" stroke="currentColor" stroke-width="1.4" stroke-dasharray="18" stroke-dashoffset="18"><animate attributeName="stroke-dashoffset" values="18;0;0" dur="1.2s" repeatCount="indefinite"/></path><g><path d="M40 22l8-8 3 3-8 8h-3z" fill="currentColor"/><animateTransform attributeName="transform" type="translate" values="0 0;8 0;0 0" dur="1.2s" repeatCount="indefinite"/></g>`
+      prop =
+        line('M30 17h12', { attrs: ' stroke-dasharray="12" stroke-dashoffset="12"', children: loop('stroke-dashoffset', '12;0;0', '1.8s') }) +
+        `<g>${line('M30 15l5-5 1.6 1.6-5 5H30z')}<animateTransform attributeName="transform" type="translate" values="0 0;8 0;0 0" dur="1.8s" repeatCount="indefinite"/></g>`
       break
     case 'running':
-      bodyMotion = bounce
-      props = [0, 1, 2]
-        .map(
-          i =>
-            `<path d="M${40 + i * 6} ${12 + i * 5}h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity="0"><animate attributeName="opacity" values="0;0.8;0" dur="0.6s" begin="${i * 0.15}s" repeatCount="indefinite"/></path>`,
-        )
+      prop = [0, 1, 2]
+        .map(i => line(`M${30 + i * 4} 8l3 3-3 3`, { attrs: ' opacity="0.15"', children: loop('opacity', '0.15;0.9;0.15', '0.9s', `${i * 0.15}s`) }))
         .join('')
       break
     case 'browsing':
-      props =
-        `<circle cx="38" cy="18" r="2" fill="currentColor"/>` +
-        [0, 1, 2]
-          .map(
-            i =>
-              `<path d="M${40 + i * 5} ${12 - i * 3}a${6 + i * 4} ${6 + i * 4} 0 0 1 0 ${12 + i * 6}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" opacity="0" transform="translate(${-4 - i * 3} 0)"><animate attributeName="opacity" values="0;0.9;0" dur="1.5s" begin="${i * 0.3}s" repeatCount="indefinite"/></path>`,
-          )
-          .join('')
+      prop =
+        `<circle cx="35" cy="11" r="4.5" fill="none" stroke="${INK}" stroke-width="1.2"/>` +
+        `<ellipse cx="35" cy="11" rx="2" ry="4.5" fill="none" stroke="${INK}" stroke-width="1">${loop('rx', '0.3;4.5;0.3', '2.4s')}</ellipse>`
       break
     case 'delegating':
-      props = `<g><circle cx="46" cy="18" r="6" fill="${color}" opacity="0.7"/><circle cx="44.5" cy="17" r="1" fill="#fff"/><circle cx="47.5" cy="17" r="1" fill="#fff"/><animateTransform attributeName="transform" type="translate" values="-8 0;0 0;0 0;-8 0" dur="2s" repeatCount="indefinite"/></g>`
+      prop =
+        `<g><path d="M30 12c0-2.5 1.8-3.6 3.5-3.6s3.5 1.1 3.5 3.6c0 1.8-1.4 2.6-3.5 2.6S30 13.8 30 12z" fill="${body}" opacity="0.6"/>` +
+        `<animateTransform attributeName="transform" type="translate" values="-4 0;6 0" dur="2.4s" repeatCount="indefinite"/>` +
+        loop('opacity', '0;1;1;0', '2.4s') +
+        `</g>`
       break
     case 'working':
-      props = `<g transform="translate(46 17)"><path d="M0-7l2 3 3-1 0 3 3 2-3 2 0 3-3-1-2 3-2-3-3 1 0-3-3-2 3-2 0-3 3 1z" fill="currentColor"/><circle r="2" fill="${color}"/><animateTransform attributeName="transform" type="rotate" additive="sum" values="0;360" dur="2s" repeatCount="indefinite"/></g>`
+      prop =
+        `<g transform="translate(35 11)"><path d="M0-4a4 4 0 0 1 4 4" fill="none" stroke="${INK}" stroke-width="1.2" stroke-linecap="round"/>` +
+        `<circle r="4" fill="none" stroke="${INK}" stroke-width="1.2" opacity="0.25"/>` +
+        `<animateTransform attributeName="transform" type="rotate" additive="sum" values="0;360" dur="1.4s" repeatCount="indefinite"/></g>`
       break
     case 'done':
-      bodyMotion = hop
-      face = `<path d="M11 15q2-2.5 4 0M19 15q2-2.5 4 0" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round"/>`
-      props = [
-        [40, 8],
-        [50, 14],
-        [44, 24],
+      face = line('M9.5 11.5q1.5-2 3 0M15.5 11.5q1.5-2 3 0', { stroke: EYE })
+      prop = [
+        [32, 8, 0],
+        [38, 13, 0.4],
       ]
         .map(
-          ([x, y], i) =>
-            `<path d="M${x} ${(y ?? 0) - 3}l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" fill="#E2A336" opacity="0"><animate attributeName="opacity" values="0;1;0" dur="0.9s" begin="${i * 0.25}s" repeatCount="indefinite"/></path>`,
+          ([x, y, begin]) =>
+            `<path d="M${x} ${(y ?? 0) - 2.5}l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" fill="${INK}" opacity="0">${loop('opacity', '0;0.9;0', '1.4s', `${begin}s`)}</path>`,
         )
         .join('')
       break
     case 'error':
-      bodyMotion = shake
-      face = `<path d="M11 13l4 4M15 13l-4 4M19 13l4 4M23 13l-4 4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>`
-      props = `<text x="38" y="22" font-size="16" font-weight="700" font-family="sans-serif" fill="#E5484D">!<animate attributeName="opacity" values="1;0.2;1" dur="0.6s" repeatCount="indefinite"/></text>`
-      break
     case 'full':
-      face = `<path d="M11 13l4 4M15 13l-4 4M19 13l4 4M23 13l-4 4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>`
-      props = `<rect x="38" y="10" width="20" height="12" rx="2" fill="none" stroke="#E5484D" stroke-width="1.4"/><rect x="40" y="12" width="16" height="8" fill="#E5484D"><animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/></rect>`
+      face = eyes() + line('M12 16q2-1.4 4 0', { stroke: EYE })
+      prop = `<path d="M33 6v6" stroke="${body}" stroke-width="1.6" stroke-linecap="round"/><circle cx="33" cy="15.5" r="1" fill="${body}"/>`
       break
   }
 
-  const sweat = isSweating
-    ? `<path d="M27 6q2 3 0 4.5q-2-1.5 0-4.5z" fill="#7FD1FF"><animateTransform attributeName="transform" type="translate" values="0 0;0 4;0 0" dur="1.5s" repeatCount="indefinite"/></path>`
-    : ''
+  // A soft pebble, a little wider at the bottom, breathing from its base.
+  const pebble = `<path d="M3 13c0-6 4.5-9.5 11-9.5S25 7 25 13c0 4.5-4 6.5-11 6.5S3 17.5 3 13z" fill="${body}"/>`
+  const breath = `<animateTransform attributeName="transform" type="scale" values="1 1;1.02 0.97;1 1" dur="${breathe}" repeatCount="indefinite"/>`
 
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 32" width="64" height="32" style="color:#8B93A7;overflow:visible">` +
-    `<g transform="translate(17 18)"><g><g transform="translate(-17 -18)">` +
-    `<line x1="17" y1="6" x2="17" y2="2" stroke="${color}" stroke-width="1.4"/><circle cx="17" cy="2" r="1.6" fill="${color}"><animate attributeName="r" values="1.2;2;1.2" dur="1.5s" repeatCount="indefinite"/></circle>` +
-    `<ellipse cx="17" cy="18" rx="12" ry="11" fill="${color}"/>${face}</g>${bodyMotion}</g></g>` +
-    `${sweat}${props}</svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 22" width="48" height="22" style="overflow:visible">` +
+    `<g transform="translate(14 19.5)"><g>${breath}<g transform="translate(-14 -19.5)">${pebble}${face}</g></g></g>` +
+    prop +
+    `</svg>`
   )
 }

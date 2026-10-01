@@ -6,7 +6,7 @@
     {
       "name": "buddy",
       "source": "./plugins/buddy",
-      "description": "An animated companion above the prompt that acts out what Claude is doing, with live context, limits, cost and turn stats"
+      "description": "A quiet companion above the prompt that acts out what Claude is doing, beside context, usage limits and cost"
     }
   ]
 }

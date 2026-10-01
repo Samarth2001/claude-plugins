@@ -2,27 +2,21 @@ import { atom, read, update } from 'claude-code'
 import type { Register, RenderElement, SessionUsage } from 'claude-code'
 
 import type { Limit, Snapshot } from '../types'
-import { bodyColor, face, svg } from './creature'
+import { face, svg, tone } from './creature'
 import type { Mood } from './creature'
 
 const snapshot = atom({ plugin: 'buddy', key: 'snapshot' } as const, null)
 const isHidden = atom({ plugin: 'buddy', key: 'isHidden' } as const, false)
 
-const FRAME_MS = 150
-const IDLE_EVERY = 4 // idle frames advance once every 4 ticks
+const FRAME_MS = 400
+const NARROW_COLUMNS = 90
+const WIDE_COLUMNS = 140
 const DONE_MS = 3000
 const ERROR_MS = 2000
 const SLEEP_AFTER_MS = 2 * 60_000
 const LIMIT_LABELS: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: 'spend' }
 
 type Activity = { mood: Mood; verb: string; target?: string }
-
-function levelColor(percent: number): string {
-  if (percent >= 90) return 'red'
-  if (percent >= 75) return 'magenta'
-  if (percent >= 50) return 'yellow'
-  return 'green'
-}
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`
@@ -42,25 +36,15 @@ function formatUntil(resetsAt: string, now: number): string {
   return `${minutes}m`
 }
 
-function bar(percent: number, cells: number): string {
-  const filled = Math.round((Math.min(100, Math.max(0, percent)) / 100) * cells)
-  return '█'.repeat(filled) + '░'.repeat(cells - filled)
-}
-
 function basename(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path
 }
 
-function toSnapshot(usage: Pick<SessionUsage, 'context' | 'rateLimits' | 'cost'>, previous: Snapshot | null): Snapshot {
-  const tokens = usage.context.tokens
-  const lastTurnAdded =
-    tokens !== undefined && previous?.tokens !== undefined ? tokens - previous.tokens : previous?.lastTurnAdded
-
+function toSnapshot(usage: Pick<SessionUsage, 'context' | 'rateLimits' | 'cost'>): Snapshot {
   return {
     percent: usage.context.percent,
-    tokens,
+    tokens: usage.context.tokens,
     window: usage.context.window,
-    lastTurnAdded,
     usd: usage.cost?.usd,
     limits: usage.rateLimits.map(({ kind, percentUsed, resetsAt }): Limit => ({ kind, percentUsed, resetsAt })),
   }
@@ -113,24 +97,21 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     const usage = await $.session.usage()
-    await update($, snapshot, previous => toSnapshot(usage, previous))
+    await update($, snapshot, () => toSnapshot(usage))
     model = await $.session.model()
     lastActiveAt = await $.clock.now()
 
+    // One calm pace for everything: props drift, the idle face blinks, timers tick.
     $.clock.every(FRAME_MS, () => {
       frame += 1
-      const isAnimating = isWorking || doneUntil > 0 || errorUntil > 0
-      // Fast frames while something moves, slow ones while idle (blinks, countdowns).
-      if (isAnimating || frame % IDLE_EVERY === 0) {
-        $.ui.invalidate('ui.render')
-      }
+      $.ui.invalidate('ui.render')
     })
 
     return result
   })
 
   on('session.measure', async ($, e, next) => {
-    await update($, snapshot, previous => toSnapshot(e, previous))
+    await update($, snapshot, () => toSnapshot(e))
 
     return next(e)
   })
@@ -187,7 +168,6 @@ export const register: Register = on => {
     if (errorUntil <= now) errorUntil = 0
 
     const percent = snap.percent ?? 0
-    const isSweating = percent >= 75 && percent < 90
 
     let mood: Mood
     let status: string
@@ -205,7 +185,7 @@ export const register: Register = on => {
       status = 'done'
     } else if (percent >= 90) {
       mood = 'full'
-      status = 'context nearly full, try /compact'
+      status = 'context nearly full · try /compact'
     } else if (now - lastActiveAt > SLEEP_AFTER_MS) {
       mood = 'sleeping'
       status = 'idle'
@@ -214,40 +194,33 @@ export const register: Register = on => {
       status = 'ready'
     }
 
-    const isFast = mood !== 'idle' && mood !== 'sleeping' && mood !== 'full'
-    const tick = isFast ? frame : Math.floor(frame / IDLE_EVERY)
-    const isNarrow = e.props.bodyColumns < 110
-    const color = levelColor(percent)
-
-    const stats: RenderElement[] = []
+    const columns = e.props.bodyColumns
+    const isNarrow = columns < NARROW_COLUMNS
+    const isWide = columns >= WIDE_COLUMNS
     const { Box, Button, Text } = $.ui.resolve(e)
+
+    // Numbers stay dim until they need attention.
+    const level = (value: number) =>
+      value >= 90 ? <Text color="red">{value}%</Text> : value >= 75 ? <Text color="yellow">{value}%</Text> : <Text dimColor>{value}%</Text>
     const sep = () => <Text dimColor> · </Text>
 
-    stats.push(
-      <Text dimColor>ctx </Text>,
-      <Text color={color}>{bar(percent, isNarrow ? 6 : 10)}</Text>,
-      <Text color={color}> {snap.percent === undefined ? '–' : `${percent}%`}</Text>,
-    )
-    if (!isNarrow) {
-      stats.push(<Text dimColor> {formatTokens(snap.tokens ?? 0)}/{formatTokens(snap.window)}</Text>)
-      if (snap.lastTurnAdded !== undefined && snap.lastTurnAdded !== 0) {
-        stats.push(<Text dimColor> {snap.lastTurnAdded > 0 ? '+' : '-'}{formatTokens(Math.abs(snap.lastTurnAdded))}</Text>)
-      }
+    const stats: RenderElement[] = [<Text dimColor>ctx </Text>, snap.percent === undefined ? <Text dimColor>–</Text> : level(percent)]
+    if (isWide && snap.tokens !== undefined) {
+      stats.push(<Text dimColor> {formatTokens(snap.tokens)}/{formatTokens(snap.window)}</Text>)
     }
     for (const limit of snap.limits) {
-      stats.push(
-        sep(),
-        <Text dimColor>{LIMIT_LABELS[limit.kind] ?? limit.kind} </Text>,
-        <Text color={levelColor(limit.percentUsed)}>{limit.percentUsed}%</Text>,
-      )
-      if (!isNarrow && limit.resetsAt) {
+      const isPrimary = limit.kind === 'five_hour'
+      const isHot = limit.percentUsed >= 75
+      if (!isPrimary && !isHot && (isNarrow || !isWide)) continue
+      stats.push(sep(), <Text dimColor>{LIMIT_LABELS[limit.kind] ?? limit.kind} </Text>, level(limit.percentUsed))
+      if (isHot && limit.resetsAt && !isNarrow) {
         stats.push(<Text dimColor> ↻{formatUntil(limit.resetsAt, now)}</Text>)
       }
     }
     if (snap.usd !== undefined) {
-      stats.push(sep(), <Text>${snap.usd.toFixed(2)}</Text>)
+      stats.push(sep(), <Text dimColor>${snap.usd.toFixed(2)}</Text>)
     }
-    if (!isNarrow) {
+    if (isWide) {
       if (isWorking && toolsThisTurn > 0) {
         stats.push(sep(), <Text dimColor>{toolsThisTurn} tools</Text>)
       }
@@ -259,37 +232,38 @@ export const register: Register = on => {
       }
     }
 
-    const statusColor = mood === 'error' || mood === 'full' ? 'red' : mood === 'done' ? 'green' : 'cyan'
-    const hide = <Button key="hide" label="Hide" onPress={() => update($, isHidden, () => true)} />
+    const feel = tone(percent, mood)
+    const statusText =
+      feel === 'alarm' && mood !== 'idle' && mood !== 'sleeping' ? <Text color="red">{status}</Text> : <Text dimColor>{status}</Text>
+    const right = (
+      <Box key="right">
+        {stats}
+        <Text>  </Text>
+        <Button key="hide" label="hide" dimColor onPress={() => update($, isHidden, () => true)} />
+      </Box>
+    )
 
     if (e.surface === 'terminal') {
+      const faceText = face(mood, frame)
       return (
         <Box>
-          <Text color={color} bold>{face(mood, tick, isSweating)}</Text>
-          <Text color={statusColor}>{status}</Text>
-          <Text dimColor>  │  </Text>
-          {stats}
+          {feel === 'calm' ? <Text dimColor>{faceText}</Text> : <Text color={feel === 'warn' ? 'yellow' : 'red'}>{faceText}</Text>}
           <Text> </Text>
-          {hide}
+          {statusText}
+          <Box flexGrow={1} />
+          {right}
         </Box>
       )
     }
 
     const { Svg } = $.ui.resolve(e)
     return (
-      <Box>
-        <Svg
-          source={svg(mood, bodyColor(percent), isSweating)}
-          alt={`Companion is ${mood}: ${status}`}
-          width={64}
-          height={32}
-          isInteractive
-        />
-        <Text color={statusColor}> {status}</Text>
-        <Text dimColor>  │  </Text>
-        {stats}
+      <Box alignItems="center">
+        <Svg source={svg(mood, percent)} alt={`Companion is ${mood}: ${status}`} width={48} height={22} isInteractive />
         <Text> </Text>
-        {hide}
+        {statusText}
+        <Box flexGrow={1} />
+        {right}
       </Box>
     )
   })

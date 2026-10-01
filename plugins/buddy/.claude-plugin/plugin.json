@@ -1,7 +1,7 @@
 {
   "name": "buddy",
-  "version": "0.1.0",
-  "description": "An animated companion above the prompt that acts out what Claude is doing, with live context, limits, cost and turn stats",
+  "version": "0.2.0",
+  "description": "A quiet companion above the prompt that acts out what Claude is doing, beside context, usage limits and cost",
   "author": { "name": "Samarth Rayar" },
   "license": "MIT",
   "types": "./types/index.d.ts"

@@ -30,7 +30,7 @@ Mods are plugins with function hooks that draw inside Claude Code. See [Getting 
 
 | Plugin | What it does |
 | --- | --- |
-| [`buddy`](plugins/buddy) | An animated companion above the prompt that acts out what Claude is doing (thinking, reading, editing, running, browsing, delegating), with live context, usage limits, cost and turn stats |
+| [`buddy`](plugins/buddy) | A quiet companion above the prompt that acts out what Claude is doing (thinking, reading, editing, running, browsing, delegating), beside context, usage limits and cost |
 
 ## Skills
 

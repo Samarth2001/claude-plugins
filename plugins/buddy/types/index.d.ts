@@ -4,7 +4,6 @@ export type Snapshot = {
   percent?: number
   tokens?: number
   window: number
-  lastTurnAdded?: number
   usd?: number
   limits: Limit[]
 }
