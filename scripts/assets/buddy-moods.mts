@@ -1,15 +1,15 @@
 // Renders plugins/buddy/assets/moods.svg, the animated mood gallery in buddy's
 // README, from the same sprite code the mod draws with.
 //
-//   node --experimental-strip-types scripts/render-buddy-gallery.mts
-//   node --experimental-strip-types scripts/render-buddy-gallery.mts --check   (CI: fail if stale)
+//   node --experimental-strip-types scripts/assets/buddy-moods.mts
+//   node --experimental-strip-types scripts/assets/buddy-moods.mts --check   (CI: fail if stale)
 
 import { readFileSync, writeFileSync } from 'node:fs'
 
-import { animation, svg } from '../plugins/buddy/hooks/sprite.ts'
-import type { Mood } from '../plugins/buddy/types/index.d.ts'
+import { animation, svg } from '../../plugins/buddy/hooks/sprite.ts'
+import type { Mood } from '../../plugins/buddy/types/index.d.ts'
 
-const OUT = new URL('../plugins/buddy/assets/moods.svg', import.meta.url)
+const OUT = new URL('../../plugins/buddy/assets/moods.svg', import.meta.url)
 
 const CELLS: { mood: Mood; percent: number; label: string }[] = [
   { mood: 'idle', percent: 20, label: 'ready' },
@@ -50,7 +50,7 @@ const gallery =
 if (process.argv.includes('--check')) {
   const current = readFileSync(OUT, 'utf8')
   if (current !== gallery) {
-    console.error('plugins/buddy/assets/moods.svg is stale: run node --experimental-strip-types scripts/render-buddy-gallery.mts')
+    console.error('plugins/buddy/assets/moods.svg is stale: run node --experimental-strip-types scripts/assets/buddy-moods.mts')
     process.exit(1)
   }
   console.log('moods.svg is up to date')
