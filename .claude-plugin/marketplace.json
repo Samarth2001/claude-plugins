@@ -1,6 +1,6 @@
 {
   "name": "samarth",
-  "description": "Samarth Rayar's Claude Code plugins, mods and skills",
+  "description": "Samarth Rayar's Claude Code plugins: mods, skills, subagents, hooks and MCP servers",
   "owner": { "name": "Samarth Rayar", "url": "https://github.com/Samarth2001" },
   "plugins": [
     {

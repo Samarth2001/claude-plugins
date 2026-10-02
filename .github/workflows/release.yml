@@ -26,6 +26,11 @@ jobs:
           manifest="plugins/$name/.claude-plugin/plugin.json"
           changelog="plugins/$name/CHANGELOG.md"
 
+          if [ ! -f "$manifest" ]; then
+            echo "::error::$TAG names no plugin: $manifest does not exist"
+            exit 1
+          fi
+
           actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$manifest" | head -1)
           if [ "$actual" != "$version" ]; then
             echo "::error::$TAG does not match $manifest ($actual)"
@@ -40,6 +45,7 @@ jobs:
             on { print }
           ' "$changelog" > notes.md
           [ -s notes.md ] || echo "See $changelog." > notes.md
-          printf '\nInstall or update:\n\n```bash\nclaude plugin marketplace add %s\nclaude plugin install %s@samarth\n```\n' "$GITHUB_REPOSITORY" "$name" >> notes.md
+          marketplace=$(jq -r .name .claude-plugin/marketplace.json)
+          printf '\nInstall or update:\n\n```bash\nclaude plugin marketplace add %s\nclaude plugin install %s@%s\n```\n' "$GITHUB_REPOSITORY" "$name" "$marketplace" >> notes.md
 
           gh release create "$TAG" --title "$name $version" --notes-file notes.md --verify-tag

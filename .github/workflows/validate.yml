@@ -33,8 +33,15 @@ jobs:
             fi
             echo "::endgroup::"
           done
+      - name: Catalog is consistent
+        run: node --experimental-strip-types scripts/catalog.mts --check
       - name: Generated assets are up to date
-        run: node --experimental-strip-types scripts/render-buddy-gallery.mts --check
+        run: |
+          set -e
+          for script in scripts/assets/*.mts; do
+            [ -e "$script" ] || continue
+            node --experimental-strip-types "$script" --check
+          done
       - name: Changed plugins bumped their version
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

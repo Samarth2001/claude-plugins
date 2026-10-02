@@ -78,7 +78,7 @@ From the repository root:
 claude plugin validate plugins/buddy
 claude plugin test plugins/buddy
 claude --plugin-dir plugins/buddy                              # try it, hot-reloads on save
-node --experimental-strip-types scripts/render-buddy-gallery.mts  # after changing the sprite
+node --experimental-strip-types scripts/assets/buddy-moods.mts   # after changing the sprite
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for releases.
