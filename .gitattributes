@@ -1,0 +1,4 @@
+# Plugins are installed on macOS and Linux too: keep LF everywhere.
+* text=auto eol=lf
+*.svg text eol=lf
+*.png binary

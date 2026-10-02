@@ -1,0 +1,45 @@
+name: Release
+
+# `claude plugin tag plugins/<name> --push` pushes a <name>--v<version> tag;
+# this publishes a GitHub release for it with that version's changelog section.
+
+on:
+  push:
+    tags: ['*--v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          name="${TAG%--v*}"
+          version="${TAG##*--v}"
+          manifest="plugins/$name/.claude-plugin/plugin.json"
+          changelog="plugins/$name/CHANGELOG.md"
+
+          actual=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$manifest" | head -1)
+          if [ "$actual" != "$version" ]; then
+            echo "::error::$TAG does not match $manifest ($actual)"
+            exit 1
+          fi
+
+          # The changelog section for this version, without its heading.
+          awk -v v="$version" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on && /^\[[^]]+\]: / { exit }
+            on { print }
+          ' "$changelog" > notes.md
+          [ -s notes.md ] || echo "See $changelog." > notes.md
+          printf '\nInstall or update:\n\n```bash\nclaude plugin marketplace add %s\nclaude plugin install %s@samarth\n```\n' "$GITHUB_REPOSITORY" "$name" >> notes.md
+
+          gh release create "$TAG" --title "$name $version" --notes-file notes.md --verify-tag
