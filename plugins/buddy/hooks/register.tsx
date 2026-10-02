@@ -1,43 +1,52 @@
 import { atom, read, update } from 'claude-code'
 import type { Register, RenderElement, SessionUsage } from 'claude-code'
 
-import type { Limit, Snapshot } from '../types'
-import { face, svg, tone } from './creature'
-import type { Mood } from './creature'
+import type { Limit, Live, Mood, Reading, Snapshot } from '../types'
+import { activityOf, formatDuration, formatTokens, formatUntil, meter, shorten, spark } from './format'
+import { FACE, HEIGHT, WIDTH, animation, cells, frameAt, levelColor, svg } from './sprite'
+
+const IDLE: Live = {
+  turnStartedAt: 0,
+  lastActiveAt: 0,
+  toolsThisTurn: 0,
+  doneUntil: 0,
+  errorUntil: 0,
+  activity: null,
+  lastTurn: null,
+  model: '',
+  files: [],
+}
 
 const snapshot = atom({ plugin: 'buddy', key: 'snapshot' } as const, null)
+const readings = atom({ plugin: 'buddy', key: 'readings' } as const, [])
+const live = atom({ plugin: 'buddy', key: 'live' } as const, IDLE)
 const isHidden = atom({ plugin: 'buddy', key: 'isHidden' } as const, false)
+const isCompact = atom({ plugin: 'buddy', key: 'isCompact' } as const, false)
 
-const FRAME_MS = 400
-const NARROW_COLUMNS = 90
-const WIDE_COLUMNS = 140
-const DONE_MS = 3000
-const ERROR_MS = 2000
+const COMPACT_KEY = 'isCompact' // in $.store, so the choice outlives the session
+const DONE_MS = 4000
+const ERROR_MS = 2500
 const SLEEP_AFTER_MS = 2 * 60_000
+const HISTORY = 16
+const TICK_MS = 120
+const NARROW_COLUMNS = 100
+const TINY_COLUMNS = 64
+const DESKTOP_SCALE = 6
 const LIMIT_LABELS: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: 'spend' }
 
-type Activity = { mood: Mood; verb: string; target?: string }
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
-  return `${n}`
-}
-
-function formatDuration(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  return s >= 60 ? `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s` : `${s}s`
-}
-
-function formatUntil(resetsAt: string, now: number): string {
-  const minutes = Math.max(0, Math.round((Date.parse(resetsAt) - now) / 60_000))
-  if (minutes >= 24 * 60) return `${Math.floor(minutes / 1440)}d${Math.floor((minutes % 1440) / 60)}h`
-  if (minutes >= 60) return `${Math.floor(minutes / 60)}h${minutes % 60}m`
-  return `${minutes}m`
-}
-
-function basename(path: string): string {
-  return path.split(/[\\/]/).filter(Boolean).pop() ?? path
+const MOOD_COLOR: Record<Mood, string> = {
+  idle: '#9AA3B5',
+  sleeping: '#9AA3B5',
+  thinking: '#B4A7F5',
+  reading: '#7FB2F0',
+  editing: '#F2C14E',
+  running: '#7BC96F',
+  browsing: '#5FB8D9',
+  delegating: '#E59AC4',
+  working: '#C9A2F2',
+  done: '#F2C14E',
+  error: '#E5534B',
+  full: '#E8964A',
 }
 
 function toSnapshot(usage: Pick<SessionUsage, 'context' | 'rateLimits' | 'cost'>): Snapshot {
@@ -50,64 +59,47 @@ function toSnapshot(usage: Pick<SessionUsage, 'context' | 'rateLimits' | 'cost'>
   }
 }
 
-// What a tool call looks like to the companion: a mood, a verb and what it acts on.
-function activityOf(tool: string, input: Record<string, unknown>): Activity {
-  const text = (key: string) => (typeof input[key] === 'string' ? (input[key] as string) : undefined)
-  const path = text('file_path') ?? text('notebook_path') ?? text('path')
-
-  switch (tool) {
-    case 'Read':
-      return { mood: 'reading', verb: 'reading', target: path && basename(path) }
-    case 'Grep':
-    case 'Glob':
-      return { mood: 'reading', verb: 'searching', target: text('pattern') }
-    case 'Edit':
-    case 'MultiEdit':
-    case 'Write':
-    case 'NotebookEdit':
-      return { mood: 'editing', verb: tool === 'Write' ? 'writing' : 'editing', target: path && basename(path) }
-    case 'Bash':
-      return { mood: 'running', verb: 'running', target: text('command')?.split(/\s+/).slice(0, 2).join(' ') }
-    case 'WebFetch':
-      return { mood: 'browsing', verb: 'fetching', target: text('url')?.replace(/^https?:\/\//, '').split('/')[0] }
-    case 'WebSearch':
-      return { mood: 'browsing', verb: 'searching the web', target: text('query') }
-    case 'Agent':
-    case 'Task':
-      return { mood: 'delegating', verb: 'delegating', target: text('description') }
-    default:
-      return tool.startsWith('mcp__')
-        ? { mood: 'working', verb: 'using', target: tool.split('__').slice(1).join(' ') }
-        : { mood: 'working', verb: 'using', target: tool }
-  }
-}
-
 export const register: Register = on => {
-  let frame = 0
-  let isWorking = false
-  let turnStartedAt = 0
-  let lastActiveAt = 0
-  let toolsThisTurn = 0
-  let doneUntil = 0
-  let errorUntil = 0
-  let model = ''
-  let activity: Activity | null = null
-  const filesTouched = new Set<string>()
+  // Redraw pacing only; everything drawn comes from $.state.
+  let pace = 250
+  let sinceDraw = 0
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
+    await $.command.register({
+      name: 'buddy',
+      description: 'Show or hide buddy; "/buddy compact" or "/buddy full" picks its size',
+    })
     const usage = await $.session.usage()
     await update($, snapshot, () => toSnapshot(usage))
-    model = await $.session.model()
-    lastActiveAt = await $.clock.now()
+    const model = await $.session.model()
+    const now = await $.clock.now()
+    await update($, live, l => ({ ...l, model, lastActiveAt: now }))
+    if ((await $.store.get(COMPACT_KEY)) === true) await update($, isCompact, () => true)
 
-    // One calm pace for everything: props drift, the idle face blinks, timers tick.
-    $.clock.every(FRAME_MS, () => {
-      frame += 1
-      $.ui.invalidate('ui.render')
+    $.clock.every(TICK_MS, () => {
+      sinceDraw += TICK_MS
+      if (sinceDraw >= pace) {
+        sinceDraw = 0
+        $.ui.invalidate('ui.render')
+      }
     })
 
     return result
+  })
+
+  on('command.run', { command: 'buddy' }, async ($, e) => {
+    const arg = e.args.trim().toLowerCase()
+    if (arg === 'compact' || arg === 'full') {
+      const small = arg === 'compact'
+      await update($, isCompact, () => small)
+      await update($, isHidden, () => false)
+      await $.store.set(COMPACT_KEY, small)
+      return { text: `buddy is ${arg} now.` }
+    }
+    const hidden = !(await read($, isHidden))
+    await update($, isHidden, () => hidden)
+    return { text: hidden ? 'buddy is hidden. Run /buddy to bring it back.' : 'buddy is back.' }
   })
 
   on('session.measure', async ($, e, next) => {
@@ -116,13 +108,9 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('prompt.submit', async ($, e, next) => {
-    isWorking = true
-    toolsThisTurn = 0
-    doneUntil = 0
-    errorUntil = 0
-    turnStartedAt = await $.clock.now()
-    lastActiveAt = turnStartedAt
+  on('turn.start', async ($, e, next) => {
+    const now = await $.clock.now()
+    await update($, live, l => ({ ...l, turnStartedAt: now, lastActiveAt: now, toolsThisTurn: 0, doneUntil: 0, errorUntil: 0, activity: null }))
 
     return next(e)
   })
@@ -130,140 +118,198 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const input = e as unknown as Record<string, unknown>
     const current = activityOf(e.tool, input)
-    activity = current
-    toolsThisTurn += 1
-    if (current.mood === 'editing' && typeof input.file_path === 'string') {
-      filesTouched.add(input.file_path)
-    }
+    const path = typeof input.file_path === 'string' ? input.file_path : undefined
+    await update($, live, l => ({
+      ...l,
+      activity: current,
+      toolsThisTurn: l.toolsThisTurn + 1,
+      files: current.mood === 'editing' && path && !l.files.includes(path) ? [...l.files, path] : l.files,
+    }))
 
     const result = await next(e)
-    if (activity === current) activity = null
-    if (result.deny === undefined && result.isError === true) {
-      errorUntil = (await $.clock.now()) + ERROR_MS
-    }
+    const failed = result.deny === undefined && result.isError === true
+    const now = await $.clock.now()
+    await update($, live, l => ({
+      ...l,
+      activity: l.activity === current || l.activity?.verb === current.verb ? null : l.activity,
+      errorUntil: failed ? now + ERROR_MS : l.errorUntil,
+    }))
 
     return result
   })
 
   on('turn.complete', async ($, e, next) => {
-    isWorking = false
-    activity = null
-    const now = await $.clock.now()
-    lastActiveAt = now
-    doneUntil = now + DONE_MS
-    model = await $.session.model()
+    const result = await next(e)
+    if (e.agentId !== undefined) return result // a subagent's turn, not ours
 
-    return next(e)
+    const now = await $.clock.now()
+    const model = await $.session.model()
+    const usage = await $.session.usage()
+    await update($, snapshot, () => toSnapshot(usage))
+    const reading: Reading = { percent: usage.context.percent ?? 0, tokens: usage.context.tokens ?? 0 }
+    await update($, readings, list => [...list, reading].slice(-HISTORY))
+    await update($, live, l => ({
+      ...l,
+      activity: null,
+      model,
+      lastActiveAt: now,
+      doneUntil: e.isAborted ? 0 : now + DONE_MS,
+      lastTurn: { ms: now - l.turnStartedAt, tools: l.toolsThisTurn },
+    }))
+
+    return result
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const snap = await read($, snapshot)
-    if (e.props.hasSurvey || snap === null || (await read($, isHidden))) {
+    if (e.props.hasSurvey || snap === null || (await read($, isHidden)) || e.props.maxRows < 2) {
       return next(e)
     }
 
+    const l = await read($, live)
+    const history = await read($, readings)
     const now = await $.clock.now()
-    isWorking = e.props.isWorking
-    if (doneUntil <= now) doneUntil = 0
-    if (errorUntil <= now) errorUntil = 0
-
+    const isWorking = e.props.isWorking
     const percent = snap.percent ?? 0
 
+    // What buddy is doing, and the line that says it.
     let mood: Mood
-    let status: string
-    if (errorUntil > 0) {
+    const status: RenderElement[] = []
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const dim = (text: string) => <Text dimColor>{text}</Text>
+    const say = (m: Mood, word: string) => <Text color={MOOD_COLOR[m]} bold>{word}</Text>
+
+    if (l.errorUntil > now) {
       mood = 'error'
-      status = 'that failed'
+      status.push(say(mood, 'oops'), dim(' that tool call failed'))
     } else if (isWorking) {
-      mood = activity?.mood ?? 'thinking'
-      const elapsed = formatDuration(now - turnStartedAt)
-      status = activity
-        ? `${activity.verb}${activity.target ? ` ${activity.target.slice(0, 28)}` : ''} · ${elapsed}`
-        : `thinking · ${elapsed}`
-    } else if (doneUntil > 0) {
+      mood = l.activity?.mood ?? 'thinking'
+      status.push(say(mood, l.activity?.verb ?? 'thinking'))
+      if (l.activity?.target) status.push(<Text> {shorten(l.activity.target, 32)}</Text>)
+      status.push(dim(` · ${formatDuration(now - l.turnStartedAt)}`))
+    } else if (l.doneUntil > now) {
       mood = 'done'
-      status = 'done'
+      status.push(say(mood, 'done'))
+      if (l.lastTurn) status.push(dim(` in ${formatDuration(l.lastTurn.ms)} · ${l.lastTurn.tools} tool${l.lastTurn.tools === 1 ? '' : 's'}`))
     } else if (percent >= 90) {
       mood = 'full'
-      status = 'context nearly full · try /compact'
-    } else if (now - lastActiveAt > SLEEP_AFTER_MS) {
+      status.push(say(mood, 'stuffed'), dim(' context nearly full, try /compact'))
+    } else if (l.lastActiveAt > 0 && now - l.lastActiveAt > SLEEP_AFTER_MS) {
       mood = 'sleeping'
-      status = 'idle'
+      status.push(say(mood, 'dozing'), dim(` · idle ${formatDuration(now - l.lastActiveAt)}`))
     } else {
       mood = 'idle'
-      status = 'ready'
+      status.push(say(mood, 'ready'))
+      if (l.lastTurn) status.push(dim(` · last turn ${formatDuration(l.lastTurn.ms)}`))
     }
 
     const columns = e.props.bodyColumns
+    const isSmall = (await read($, isCompact)) || columns < TINY_COLUMNS || e.props.maxRows < Math.ceil(HEIGHT / 2)
     const isNarrow = columns < NARROW_COLUMNS
-    const isWide = columns >= WIDE_COLUMNS
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const loop = animation(mood, { percent, isSweating: percent >= 75 && percent < 90 })
+    pace = e.surface === 'terminal' ? loop.frameMs : 1000
 
-    // Numbers stay dim until they need attention.
-    const level = (value: number) =>
-      value >= 90 ? <Text color="red">{value}%</Text> : value >= 75 ? <Text color="yellow">{value}%</Text> : <Text dimColor>{value}%</Text>
-    const sep = () => <Text dimColor> · </Text>
-
-    const stats: RenderElement[] = [<Text dimColor>ctx </Text>, snap.percent === undefined ? <Text dimColor>–</Text> : level(percent)]
-    if (isWide && snap.tokens !== undefined) {
-      stats.push(<Text dimColor> {formatTokens(snap.tokens)}/{formatTokens(snap.window)}</Text>)
-    }
-    for (const limit of snap.limits) {
-      const isPrimary = limit.kind === 'five_hour'
-      const isHot = limit.percentUsed >= 75
-      if (!isPrimary && !isHot && (isNarrow || !isWide)) continue
-      stats.push(sep(), <Text dimColor>{LIMIT_LABELS[limit.kind] ?? limit.kind} </Text>, level(limit.percentUsed))
-      if (isHot && limit.resetsAt && !isNarrow) {
-        stats.push(<Text dimColor> ↻{formatUntil(limit.resetsAt, now)}</Text>)
-      }
-    }
-    if (snap.usd !== undefined) {
-      stats.push(sep(), <Text dimColor>${snap.usd.toFixed(2)}</Text>)
-    }
-    if (isWide) {
-      if (isWorking && toolsThisTurn > 0) {
-        stats.push(sep(), <Text dimColor>{toolsThisTurn} tools</Text>)
-      }
-      if (filesTouched.size > 0) {
-        stats.push(sep(), <Text dimColor>{filesTouched.size} files edited</Text>)
-      }
-      if (model) {
-        stats.push(sep(), <Text dimColor>{model.replace(/^claude-/, '')}</Text>)
-      }
+    // Context: a sparkline of past turns, then now.
+    const isMeasured = snap.percent !== undefined
+    const sparks = isMeasured ? [...history.slice(isNarrow ? -6 : -12).map(r => r.percent), percent] : []
+    const context: RenderElement[] = [dim('ctx ')]
+    for (const p of sparks) context.push(<Text color={levelColor(p)}>{spark(p)}</Text>)
+    context.push(isMeasured ? <Text color={levelColor(percent)} bold> {percent}%</Text> : dim('measured after the first turn'))
+    if (!isNarrow && snap.tokens !== undefined) context.push(dim(` ${formatTokens(snap.tokens)}/${formatTokens(snap.window)}`))
+    const last = history.at(-1)
+    const before = history.at(-2)
+    if (!isNarrow && last && before && last.tokens !== before.tokens) {
+      const delta = last.tokens - before.tokens
+      context.push(<Text color={delta > 0 ? undefined : '#7BC96F'} dimColor={delta > 0}> {delta > 0 ? '▲' : '▼'}{formatTokens(Math.abs(delta))}</Text>)
     }
 
-    const feel = tone(percent, mood)
-    const statusText =
-      feel === 'alarm' && mood !== 'idle' && mood !== 'sleeping' ? <Text color="red">{status}</Text> : <Text dimColor>{status}</Text>
-    const right = (
-      <Box key="right">
-        {stats}
-        <Text>  </Text>
-        <Button key="hide" label="hide" dimColor onPress={() => update($, isHidden, () => true)} />
+    const limit = (one: Limit, cellsWide: number) => {
+      const { filled, empty } = meter(one.percentUsed, cellsWide)
+      const out: RenderElement[] = [dim(`${LIMIT_LABELS[one.kind] ?? one.kind} `)]
+      if (cellsWide > 0) out.push(<Text color={levelColor(one.percentUsed)}>{filled}</Text>, dim(empty), <Text> </Text>)
+      out.push(<Text color={levelColor(one.percentUsed)}>{one.percentUsed}%</Text>)
+      if (!isNarrow && one.resetsAt) out.push(dim(` resets ${formatUntil(one.resetsAt, now)}`))
+      return out
+    }
+
+    const toggle = (
+      <Button key="size" label={isSmall ? 'expand' : 'compact'} plain dimColor onPress={async () => {
+        const small = !isSmall
+        await update($, isCompact, () => small)
+        await $.store.set(COMPACT_KEY, small)
+      }} />
+    )
+    // The terminal draws its own [-] in the band's corner; elsewhere buddy offers hide.
+    const isTerminal = e.surface === 'terminal'
+    const controls = (
+      <Box key="controls" marginRight={isTerminal ? 4 : 0}>
+        {toggle}
+        {isTerminal ? null : <Text> </Text>}
+        {isTerminal ? null : <Button key="hide" label="hide" plain dimColor onPress={() => update($, isHidden, () => true)} />}
+      </Box>
+    )
+    const line = (key: string, parts: RenderElement[], withControls = false) => (
+      <Box key={key}>
+        {parts}
+        {withControls ? <Box flexGrow={1} /> : null}
+        {withControls ? controls : null}
       </Box>
     )
 
-    if (e.surface === 'terminal') {
-      const faceText = face(mood, frame)
+    const art = (() => {
+      const grid = frameAt(loop, now)
+      const crop = isSmall ? FACE : undefined
+      if (isTerminal) {
+        const { Raster } = $.ui.resolve(e)
+        const columnsWide = crop?.width ?? WIDTH
+        const rowsTall = Math.ceil((crop?.height ?? HEIGHT) / 2)
+        return <Raster key="buddy" columns={columnsWide} rows={rowsTall} cells={cells(grid, crop)} />
+      }
+      const { Svg } = $.ui.resolve(e)
+      const source = svg(loop, DESKTOP_SCALE, crop)
+      const widthPx = (crop?.width ?? WIDTH) * DESKTOP_SCALE
+      const heightPx = (crop?.height ?? HEIGHT) * DESKTOP_SCALE
+      return <Svg source={source} alt={`buddy is ${mood}`} width={widthPx} height={heightPx} isInteractive />
+    })()
+
+    if (isSmall) {
+      const five = snap.limits.find(one => one.kind === 'five_hour')
+      const stats: RenderElement[] = [...context.slice(0, 1 + sparks.length + 1)]
+      if (five) stats.push(dim('  '), ...limit(five, 0))
+      if (snap.usd !== undefined) stats.push(dim(`  $${snap.usd.toFixed(2)}`))
       return (
-        <Box>
-          {feel === 'calm' ? <Text dimColor>{faceText}</Text> : <Text color={feel === 'warn' ? 'yellow' : 'red'}>{faceText}</Text>}
-          <Text> </Text>
-          {statusText}
-          <Box flexGrow={1} />
-          {right}
+        <Box alignItems="center">
+          {art}
+          <Box flexDirection="column" flexGrow={1} marginLeft={1}>
+            {line('status', status, true)}
+            {line('stats', stats)}
+          </Box>
         </Box>
       )
     }
 
-    const { Svg } = $.ui.resolve(e)
+    const limits: RenderElement[] = []
+    for (const one of snap.limits) {
+      if (limits.length > 0) limits.push(dim('   '))
+      limits.push(...limit(one, isNarrow ? 5 : 8))
+    }
+    if (limits.length === 0) limits.push(dim('no usage limits reported'))
+
+    const extras: RenderElement[] = []
+    if (snap.usd !== undefined) extras.push(<Text>${snap.usd.toFixed(2)}</Text>)
+    if (isWorking && l.toolsThisTurn > 0) extras.push(dim(`${extras.length ? ' · ' : ''}${l.toolsThisTurn} tools`))
+    if (l.files.length > 0) extras.push(dim(`${extras.length ? ' · ' : ''}${l.files.length} file${l.files.length === 1 ? '' : 's'} edited`))
+    if (l.model && !isNarrow) extras.push(dim(`${extras.length ? ' · ' : ''}${l.model.replace(/^claude-/, '')}`))
+
     return (
       <Box alignItems="center">
-        <Svg source={svg(mood, percent)} alt={`Companion is ${mood}: ${status}`} width={48} height={22} isInteractive />
-        <Text> </Text>
-        {statusText}
-        <Box flexGrow={1} />
-        {right}
+        {art}
+        <Box flexDirection="column" flexGrow={1} marginLeft={2}>
+          {line('status', status, true)}
+          {line('context', context)}
+          {line('limits', limits)}
+          {line('extras', extras)}
+        </Box>
       </Box>
     )
   })

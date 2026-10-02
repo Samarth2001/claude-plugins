@@ -1,8 +1,12 @@
 {
   "name": "buddy",
-  "version": "0.2.0",
-  "description": "A quiet companion above the prompt that acts out what Claude is doing, beside context, usage limits and cost",
-  "author": { "name": "Samarth Rayar" },
+  "displayName": "Buddy",
+  "version": "0.3.0",
+  "description": "A pixel-art companion above the prompt that acts out what Claude is doing, with a sprout that wilts as context fills, a context sparkline, usage limits and cost",
+  "author": { "name": "Samarth Rayar", "url": "https://github.com/Samarth2001" },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/buddy",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
   "license": "MIT",
+  "keywords": ["mod", "companion", "pixel-art", "status", "context", "usage"],
   "types": "./types/index.d.ts"
 }

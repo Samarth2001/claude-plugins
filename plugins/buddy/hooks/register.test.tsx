@@ -1,11 +1,13 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-const BAND = (isWorking: boolean, bodyColumns = 160) =>
+const SURFACES = ['terminal', 'desktop'] as const
+
+const BAND = (isWorking: boolean, bodyColumns = 160, maxRows = 10) =>
   ({
     plugin: 'buddy',
     component: 'AbovePrompt',
-    props: { hasSurvey: false, isWorking, maxRows: 10, bodyColumns, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+    props: { hasSurvey: false, isWorking, maxRows, bodyColumns, scroll: { offset: 0, bodyRows: 10 }, view: {} },
   }) as const
 
 const usage = (tokens: number) => ({
@@ -17,14 +19,22 @@ const usage = (tokens: number) => ({
   cost: { usd: 2.414 },
 })
 
-function engine(on: On, tokens = 380_000) {
+// The engine beneath the plugin. `tokens` is read on every usage call, so a
+// test can grow the context between turns.
+function engine(on: On, context = { tokens: 380_000 }, store = new Map<string, unknown>()) {
   const clock = mock.clock(on)
   on('session.start', () => ({ cwd: '/' }))
-  on('session.usage', () => ({ value: { startedAt: 0, ...usage(tokens) } }))
+  on('session.usage', () => ({ value: { startedAt: 0, ...usage(context.tokens) } }))
   on('session.model', () => ({ value: 'claude-opus-5-5' }))
   on('session.measure', (_$, e) => ({ changed: e.changed }))
-  on('prompt.submit', (_$, e) => e as never)
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
+  on('command.register', () => ({ value: undefined }) as never)
+  on('store.get', (_$, e) => ({ value: store.get(e.key) }) as never)
+  on('store.set', (_$, e) => {
+    store.set(e.key, e.value)
+    return { value: undefined } as never
+  })
   on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
     const { Box } = $.ui.resolve(e)
     return <Box />
@@ -33,117 +43,150 @@ function engine(on: On, tokens = 380_000) {
 }
 
 const start = { cwd: '/', surface: 'terminal', isInteractive: true } as const
-const text = async (ui: { findAll: (q: { type: 'Text' }) => Promise<{ text?: string }[]> }) =>
+const done = { answer: '', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
+type Found = { text?: string; props?: Record<string, unknown> }
+const text = async (ui: { findAll: (q: { type: 'Text' }) => Promise<Found[]> }) =>
   (await ui.findAll({ type: 'Text' })).map(t => t.text ?? '').join('')
 
-test('idle band shows a quiet face and the essentials', async ($, on) => {
-  engine(on)
-  await $.session.start(start)
-  const ui = await $.ui.mount({ ...BAND(false, 120), surface: 'terminal' })
-  const line = await text(ui)
-  expect(line).toContain('◦‿◦')
-  expect(line).toContain('ready')
-  expect(line).toContain('ctx 38%')
-  expect(line).toContain('5h 23%')
-  expect(line).toContain('7d 81%') // a hot limit always shows
-  expect(line).toContain('$2.41')
-  expect(line).not.toContain('380.0k/1M')
-  expect(line).not.toContain('opus-5-5')
-})
-
-test('a wide band adds tokens and the model', async ($, on) => {
-  engine(on)
-  await $.session.start(start)
-  const ui = await $.ui.mount({ ...BAND(false, 160), surface: 'terminal' })
-  const line = await text(ui)
-  expect(line).toContain('380.0k/1M')
-  expect(line).toContain('opus-5-5')
-})
-
-test('desktop draws an animated SVG companion', async ($, on) => {
-  engine(on)
-  await $.session.start(start)
-  const ui = await $.ui.mount({ ...BAND(false), surface: 'desktop' })
-  const art = await ui.find({ type: 'Svg' })
-  expect(art).toBeDefined()
-  expect(await text(ui)).toContain('ready')
-})
-
-test('acts out the running tool, counts it, then celebrates', async ($, on) => {
-  let during = ''
-  on('tool.call', async () => {
-    const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-    during = await text(ui)
-    await ui.unmount()
-    return { result: 'ok' } as never
+for (const surface of SURFACES) {
+  test(`${surface}: idle band draws buddy and the session numbers`, async ($, on) => {
+    engine(on)
+    await $.session.start(start)
+    const ui = await $.ui.mount({ ...BAND(false), surface })
+    const line = await text(ui)
+    expect(line).toContain('ready')
+    expect(line).toContain('38%')
+    expect(line).toContain('380k/1M')
+    expect(line).toContain('5h')
+    expect(line).toContain('23%')
+    expect(line).toContain('81%')
+    expect(line).toContain('$2.41')
+    expect(line).toContain('opus-5-5')
+    if (surface === 'terminal') {
+      const art = (await ui.find({ type: 'Raster' })) as Found | undefined
+      expect(art?.props?.columns).toBe(19)
+      expect(art?.props?.rows).toBe(4)
+    } else {
+      const art = (await ui.find({ type: 'Svg' })) as Found | undefined
+      const source = String(art?.props?.source)
+      expect(source).toContain('color-scheme:light dark') // no white box on a dark app
+      expect(source).toContain('calcMode="discrete"') // animates without redraws
+    }
   })
-  engine(on)
-  await $.session.start(start)
-  await $.prompt.submit({ text: 'go' } as never)
-  await $.tool.call({ tool: 'Edit', file_path: '/repo/src/app.ts', old_string: 'a', new_string: 'b' } as never)
-  expect(during).toContain('editing app.ts')
-  expect(during).toContain('✎')
 
-  const working = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-  expect(await text(working)).toContain('1 tools')
-  await working.unmount()
+  test(`${surface}: acts out the running tool, then celebrates`, async ($, on) => {
+    let during = ''
+    on('tool.call', async () => {
+      const ui = await $.ui.mount({ ...BAND(true), surface })
+      during = await text(ui)
+      await ui.unmount()
+      return { result: 'ok' } as never
+    })
+    engine(on)
+    await $.session.start(start)
+    await $.turn.start({ text: 'go', turnId: 't' })
+    await $.tool.call({ tool: 'Edit', file_path: '/repo/src/app.ts', old_string: 'a', new_string: 'b' } as never)
+    expect(during).toContain('editing')
+    expect(during).toContain('app.ts')
+    expect(during).toContain('1 tools')
 
-  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' })
-  const after = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
-  const line = await text(after)
-  expect(line).toContain('done')
-  expect(line).toContain('◠‿◠')
-  expect(line).toContain('1 files edited')
-})
+    await $.turn.complete(done)
+    const after = await $.ui.mount({ ...BAND(false), surface })
+    const line = await text(after)
+    expect(line).toContain('done')
+    expect(line).toContain('1 tool')
+    expect(line).toContain('1 file edited')
+  })
 
-test('a failed tool makes it flinch', async ($, on) => {
-  on('tool.call', () => ({ result: 'boom', isError: true }) as never)
-  engine(on)
-  await $.session.start(start)
-  await $.prompt.submit({ text: 'go' } as never)
-  await $.tool.call({ tool: 'Bash', command: 'false' } as never)
-  const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-  const line = await text(ui)
-  expect(line).toContain('◦⌒◦ !')
-  expect(line).toContain('that failed')
-})
+  test(`${surface}: a failed tool says oops`, async ($, on) => {
+    on('tool.call', () => ({ result: 'boom', isError: true }) as never)
+    engine(on)
+    await $.session.start(start)
+    await $.turn.start({ text: 'go', turnId: 't' })
+    await $.tool.call({ tool: 'Bash', command: 'false' } as never)
+    const ui = await $.ui.mount({ ...BAND(true), surface })
+    expect(await text(ui)).toContain('oops')
+  })
 
-test('the face animates while working', async ($, on) => {
+  test(`${surface}: compact button shrinks it to the face and remembers`, async ($, on) => {
+    const store = new Map<string, unknown>()
+    engine(on, undefined, store)
+    await $.session.start(start)
+    const ui = await $.ui.mount({ ...BAND(false), surface })
+    await ui.press({ key: 'size' })
+    const line = await text(ui)
+    expect(line).toContain('38%')
+    expect(line).not.toContain('opus-5-5')
+    expect(store.get('isCompact')).toBe(true) // remembered for the next session
+    if (surface === 'terminal') {
+      const art = (await ui.find({ type: 'Raster' })) as Found | undefined
+      expect(art?.props?.rows).toBe(2)
+    }
+  })
+}
+
+test('the terminal sprite animates while working', async ($, on) => {
   const clock = engine(on)
   await $.session.start(start)
-  await $.prompt.submit({ text: 'go' } as never)
+  await $.turn.start({ text: 'go', turnId: 't' })
   const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-  const before = await text(ui)
+  const cellsAt = async () => ((await ui.find({ type: 'Raster' })) as Found | undefined)?.props?.cells
+  const before = await cellsAt()
   await clock.advance(400)
-  expect(await text(ui)).not.toBe(before)
+  expect(await cellsAt()).not.toBe(before)
 })
 
-test('near-full context asks for /compact', async ($, on) => {
-  engine(on, 920_000)
+test('the sparkline grows a bar per turn and shows the jump', async ($, on) => {
+  const context = { tokens: 100_000 }
+  engine(on, context)
+  await $.session.start(start)
+  for (const tokens of [100_000, 300_000, 600_000]) {
+    context.tokens = tokens
+    await $.turn.start({ text: 'go', turnId: 't' })
+    await $.turn.complete(done)
+  }
+  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  const line = await text(ui)
+  expect(line).toMatch(/ctx [▁-█]{4} 60%/)
+  expect(line).toContain('▲300k')
+})
+
+test('near-full context wilts the sprout and asks for /compact', async ($, on) => {
+  engine(on, { tokens: 920_000 })
   await $.session.start(start)
   const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
-  expect(await text(ui)).toContain('/compact')
-})
-
-test('narrow band keeps only context, 5h, cost and hot limits', async ($, on) => {
-  engine(on, 100_000)
-  await $.session.start(start)
-  const ui = await $.ui.mount({ ...BAND(false, 80), surface: 'terminal' })
   const line = await text(ui)
-  expect(line).toContain('ctx 10%')
-  expect(line).toContain('5h 23%')
-  expect(line).toContain('7d 81%')
-  expect(line).not.toContain('↻')
-  expect(line).not.toContain('380.0k/1M')
+  expect(line).toContain('stuffed')
+  expect(line).toContain('/compact')
 })
 
-test('color is only used for warnings', async ($, on) => {
-  engine(on, 800_000)
+test('a subagent finishing does not end our turn', async ($, on) => {
+  engine(on)
   await $.session.start(start)
-  const ui = await $.ui.mount({ ...BAND(false, 120), surface: 'terminal' })
-  const texts = await ui.findAll({ type: 'Text' })
-  const colored = texts.filter(t => (t as { props?: { color?: string } }).props?.color !== undefined)
-  const warm = colored.map(t => t.text).join('')
-  expect(warm).toContain('80%')
-  expect(warm).not.toContain('23%')
+  await $.turn.start({ text: 'go', turnId: 't' })
+  await $.turn.complete({ ...done, agentId: 'sub' } as never)
+  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  expect(await text(ui)).not.toContain('done')
+})
+
+test('/buddy hides and brings it back', async ($, on) => {
+  engine(on)
+  await $.session.start(start)
+  const run = (args: string) => $.command.run({ command: 'buddy', args } as never)
+  expect((await run('')) as { text?: string }).toMatchObject({ text: expect.stringContaining('hidden') })
+  const hidden = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  expect(await text(hidden)).not.toContain('ready')
+  await hidden.unmount()
+  await run('')
+  const shown = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  expect(await text(shown)).toContain('ready')
+})
+
+test('a narrow terminal falls back to the compact face', async ($, on) => {
+  engine(on)
+  await $.session.start(start)
+  const ui = await $.ui.mount({ ...BAND(false, 60), surface: 'terminal' })
+  const art = (await ui.find({ type: 'Raster' })) as Found | undefined
+  expect(art?.props?.rows).toBe(2)
+  expect(await text(ui)).toContain('ready')
 })
