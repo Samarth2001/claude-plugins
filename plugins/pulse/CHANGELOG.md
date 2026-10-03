@@ -4,6 +4,8 @@ All notable changes to pulse. The format follows [Keep a Changelog](https://keep
 
 ## [0.1.0] - 2026-10-03
 
+Replaces buddy, which is removed from the marketplace. Existing buddy installs move to pulse on their own (Claude Code v2.1.193 or later).
+
 ### Added
 
 - A one-line glance above the prompt: a heartbeat trace that scrolls while Claude works, the turn's clock and tool count, a context sparkline, plan limit meters with an even-pace mark and the 5-hour reset countdown, and spend for this session, today and this month.
@@ -11,4 +13,5 @@ All notable changes to pulse. The format follows [Keep a Changelog](https://keep
 - `/pulse` opens a dashboard pane with every section at once.
 - A spend ledger in the plugin's store, kept per session and per local day so sessions running side by side don't overwrite each other; days older than 400 days are pruned.
 - A value that just changed glows for a moment; a toast when a plan limit crosses 80% and 95%.
+- The band's tabs are labeled with their hotkeys; the open tab is underlined.
 - `/pulse glance`, `/pulse detail`, `/pulse context|limits|cost|turns`, `/pulse hide`, `/pulse show`. The band's mode, tab and range are remembered across sessions.

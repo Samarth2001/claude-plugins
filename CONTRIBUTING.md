@@ -77,4 +77,4 @@ Never change a plugin's `name`, because it is the install id. Change `displayNam
 
 ## Commits
 
-Commit as `Samarth Rayar <samarthsr2001@gmail.com>`. Make one change per commit. Start the subject with the plugin name for plugin changes (`buddy: ...`) and describe the area for repo-wide changes (`Release workflow: ...`).
+Commit as `Samarth Rayar <samarthsr2001@gmail.com>`. Make one change per commit. Start the subject with the plugin name for plugin changes (`pulse: ...`) and describe the area for repo-wide changes (`Release workflow: ...`).

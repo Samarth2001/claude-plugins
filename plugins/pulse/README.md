@@ -9,9 +9,9 @@ A live usage cockpit above the Claude Code prompt. One quiet line tells you how 
 Expanded, on the Limits tab:
 
 ```
- Context ▸Limits  Cost  Turns                                                    dashboard
+1: Context  2: Limits  3: Cost  4: Turns                                       p: dashboard
 5h    ━━━━━━━───────────┃───────────   23%  resets in 2h00m  ·  0.4x pace → 38% at reset
-7d    ━━━━━━━━━━━━┃━━━━━━━━━━━──────   81%  resets in 4d0h  ·  1.9x pace · full in ~16h53m
+7d    ━━━━━━━━━━━━┃━━━━━━━━━━━──────   81%  resets in 4d 0h  ·  1.9x pace · full in ~16h53m
 ┃ marks an even pace through the window
 ```
 
@@ -20,7 +20,7 @@ On the Cost tab:
 ```
        ██       ▃▃     session $2.07  today $4.47  7d $24.37
     ▂▂ ██    ▅▅ ██ ██  Oct $24.37  → ~$50.36 by month end  last month $40.00
-Fr Sa Su Mo Tu We Th   avg $3.48/day  · tracked here since Sep 2
+Fr Sa Su Mo Tu We Th   avg $3.48/day · tracked here since Sep 2
 tokens in 1.2M · out 84k · cache hit 91% · subagents 22%
 ```
 
@@ -31,7 +31,9 @@ claude plugin marketplace add Samarth2001/claude-plugins
 claude plugin install pulse@samarth
 ```
 
-Then run `/reload-plugins` in an open session, or start a new one. It draws with plain text, so it works in the terminal, the desktop app's Code tab, VS Code and mobile.
+Then run `/reload-plugins` in an open session, or start a new one.
+
+Pulse replaces buddy. If you had `buddy@samarth` installed, Claude Code (v2.1.193 or later) moves it to `pulse@samarth` the next time it updates the marketplace; run `/plugin install pulse@samarth` once if it reports the plugin is not cached. It draws with plain text, so it works in the terminal, the desktop app's Code tab, VS Code and mobile.
 
 ## What it shows
 
@@ -44,7 +46,7 @@ Then run `/reload-plugins` in an open session, or start a new one. It draws with
 | `5h`, `7d` | Each plan limit as a meter with `┃` where an even pace would be by now, the percent used, and the time until the 5-hour window resets. The color follows where the window is heading, not only where it is |
 | Money | This session, today, and this month across every session on this machine |
 
-The row drops the meters and the sparkline below 120 columns, and keeps only the numbers below 84.
+The row drops the meters below 120 columns, and keeps only the numbers below 84. Below 90 columns the Cost tab's range buttons move from the tab strip to the top of the tab.
 
 ### The tabs
 

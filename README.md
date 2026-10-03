@@ -34,7 +34,6 @@ Installed plugins also load in the Claude desktop app (Code tab, local sessions)
 <!-- catalog:start -->
 | Plugin | Install id | Type | What it does |
 | --- | --- | --- | --- |
-| [Buddy](plugins/buddy) | `buddy` | mods | A pixel-art companion above the prompt that acts out what Claude is doing, with a sprout that wilts as context fills, a context sparkline, usage limits and cost |
 | [Pulse](plugins/pulse) | `pulse` | mods | A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane |
 <!-- catalog:end -->
 
