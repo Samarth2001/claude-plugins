@@ -1,0 +1,22 @@
+{
+  "name": "pulse",
+  "displayName": "Pulse",
+  "version": "0.1.0",
+  "description": "A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane",
+  "author": {
+    "name": "Samarth Rayar",
+    "url": "https://github.com/Samarth2001"
+  },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/pulse",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "usage",
+    "cost",
+    "limits",
+    "context",
+    "dashboard"
+  ],
+  "types": "./types/index.d.ts"
+}
