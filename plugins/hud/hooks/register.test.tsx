@@ -9,16 +9,16 @@ const NOW = Date.UTC(2026, 9, 15, 12)
 
 const BAND = (isWorking: boolean, bodyColumns = 160, maxRows = 10) =>
   ({
-    plugin: 'pulse',
+    plugin: 'hud',
     component: 'AbovePrompt',
     props: { hasSurvey: false, isWorking, maxRows, bodyColumns, scroll: { offset: 0, bodyRows: 10 }, view: {} },
   }) as const
 
 const PANE = {
-  plugin: 'pulse',
+  plugin: 'hud',
   component: 'Pane',
-  requestId: 'pulse',
-  props: { title: 'Pulse', isFocused: false, bodyColumns: 120, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
+  requestId: 'hud',
+  props: { title: 'HUD', isFocused: false, bodyColumns: 120, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
 } as const
 
 type World = { tokens: number; usd: number; five: number; seven: number }
@@ -82,7 +82,7 @@ for (const surface of SURFACES) {
     const line = await text(ui)
     expect(line).toContain('42%')
     expect(line).toContain('23%')
-    expect(line).toContain('↻2h00m')
+    expect(line).toContain('↻ 2h00m')
     expect(line).toContain('81%')
     expect(line).toContain('$2.07')
     expect(line).toContain('Oct')
@@ -90,10 +90,23 @@ for (const surface of SURFACES) {
       expect(await ui.find({ key })).toBeDefined()
     }
     expect(await ui.find({ key: 'drawer-0' })).toBeUndefined()
-    // Gauges are drawn, not typed: cells in the terminal, an animated Svg elsewhere.
-    const gauge = (await ui.find({ type: surface === 'terminal' ? 'Raster' : 'Svg' })) as Found | undefined
-    expect(gauge).toBeDefined()
-    if (surface !== 'terminal') expect(String(gauge?.props?.source)).toContain('color-scheme:light dark')
+    // Cells in the terminal; on the desktop, vector icons and meters drawn as
+    // plain images (an interactive frame brings its own white page), each one
+    // well-formed: a repeated attribute makes the host draw a broken image.
+    if (surface === 'terminal') {
+      expect(await ui.find({ type: 'Raster' })).toBeDefined()
+      expect(await ui.find({ type: 'Svg' })).toBeUndefined()
+    } else {
+      const svgs = (await ui.findAll({ type: 'Svg' })) as Found[]
+      expect(svgs.length).toBeGreaterThan(3)
+      for (const svg of svgs) {
+        expect(svg.props?.isInteractive).toBeUndefined()
+        for (const tag of String(svg.props?.source).match(/<[a-zA-Z][^>]*>/g) ?? []) {
+          const names = [...tag.matchAll(/\s([a-zA-Z:-]+)=/g)].map(m => m[1])
+          expect(new Set(names).size).toBe(names.length)
+        }
+      }
+    }
   })
 
   test(`${surface}: a label opens its drawer, and again closes it`, async ($, on) => {
@@ -104,8 +117,8 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'open-limits-5h' })
     expect(store.get('view')).toMatchObject({ mode: 'detail', tab: 'limits' }) // remembered
     const limits = await text(ui)
-    expect(limits).toContain('↻ 2h00m')
-    expect(limits).toContain('↻ 4d 0h')
+    expect(limits).toContain('resets in 2h00m')
+    expect(limits).toContain('resets in 4d 0h')
     expect(limits).toContain('0.4×')
     expect(limits).toContain('38%') // 23% at 3h of 5h carries to 38%
     expect(limits).toContain('at reset')
@@ -142,7 +155,7 @@ test('spend lands in today, and other sessions count toward the month', async ($
   expect(store.get(`spent:${today}:session-a`)).toBe(1.5)
   expect(store.get('seen:session-a')).toMatchObject({ usd: 1.5 })
 
-  await $.command.run({ command: 'pulse', args: 'cost' } as never)
+  await $.command.run({ command: 'hud', args: 'cost' } as never)
   const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
   const line = await text(ui)
   expect(line).toContain('$1.50')
@@ -190,10 +203,12 @@ test('a fresh reading glows, then settles', async ($, on) => {
   w.tokens = 500_000
   await $.session.measure(measure(w, ['context']))
   const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
-  const glowing = async () => (await ui.findAll({ type: 'Text' })).find(t => t.text === '50%')?.props?.inverse
-  expect(await glowing()).toBe(true)
+  const color = async () => (await ui.findAll({ type: 'Text' })).find(t => t.text === '50%')?.props?.color
+  const glowing = await color()
   await clock.advance(2000)
-  expect(await glowing()).toBe(false)
+  const settled = await color()
+  expect(settled).toBeDefined()
+  expect(glowing).not.toBe(settled) // brighter while fresh, then back to its own color
 })
 
 test('the heartbeat moves while a turn runs and counts tools', async ($, on) => {
@@ -203,11 +218,11 @@ test('the heartbeat moves while a turn runs and counts tools', async ($, on) => 
   await $.turn.start({ text: 'go', turnId: 't' })
   await $.tool.call({ tool: 'Read', file_path: '/a.ts' } as never)
   const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-  expect(await text(ui)).toContain('1 tool')
-  const trace = async () => ((await ui.find({ key: 'wave' })) as Found | undefined)?.props?.cells
-  const before = await trace()
+  const before = await text(ui)
+  expect(before).toContain('working')
+  expect(before).toContain('1 tool')
   await clock.advance(420)
-  expect(await trace()).not.toBe(before)
+  expect((await text(ui))[0]).not.toBe(before[0]) // the spinner turned
 })
 
 test('the turns tab lists finished turns and the tool mix', async ($, on) => {
@@ -222,7 +237,7 @@ test('the turns tab lists finished turns and the tool mix', async ($, on) => {
     await $.tool.call({ tool: 'mcp__github__get_me' } as never)
     await $.turn.complete({ ...done, usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 90, cache_creation_input_tokens: 0, model: 'm' } })
   }
-  await $.command.run({ command: 'pulse', args: 'turns' } as never)
+  await $.command.run({ command: 'hud', args: 'turns' } as never)
   const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
   const line = await text(ui)
   expect(line).toContain('2 turns')
@@ -238,10 +253,10 @@ test('the turns tab lists finished turns and the tool mix', async ($, on) => {
   expect(all).toContain('cache 90%')
 })
 
-test('/pulse hide and show, and /pulse opens the dashboard', async ($, on) => {
+test('/hud hide and show, and /hud opens the dashboard', async ($, on) => {
   engine(on, world())
   await $.session.start(start)
-  const run = async (args: string) => ((await $.command.run({ command: 'pulse', args } as never)) as { text?: string }).text
+  const run = async (args: string) => ((await $.command.run({ command: 'hud', args } as never)) as { text?: string }).text
   expect(await run('hide')).toContain('hidden')
   const hidden = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
   expect(await hidden.find({ key: 'open-context-ctx' })).toBeUndefined()
@@ -267,4 +282,47 @@ test('a narrow band keeps only the numbers', async ($, on) => {
   expect(line).toContain('$2.07')
   expect(line).not.toContain('Oct')
   expect(await ui.find({ key: 'bar-five_hour' })).toBeUndefined() // numbers only
+})
+
+for (const surface of SURFACES) {
+  test(`${surface}: the row gets richer as it widens, meters capped`, async ($, on) => {
+    engine(on, world())
+    await $.session.start(start)
+    const row = async (columns: number) => {
+      const ui = await $.ui.mount({ ...BAND(false, columns), surface })
+      const line = await text(ui)
+      const found = (await ui.find({ key: 'bar-five_hour' })) as Found | undefined
+      const cols = surface === 'terminal'
+        ? Number(found?.props?.columns ?? 0)
+        : Number(((await ui.findAll({ type: 'Svg' })) as Found[]).find(x => x.props?.alt === '23%')?.props?.width ?? 0) / 8
+      await ui.unmount()
+      return { line, cols }
+    }
+    const narrow = await row(80)
+    const wide = await row(220)
+    expect(wide.cols).toBeGreaterThan(narrow.cols)
+    expect(wide.line).toContain('↻ 4d 0h')
+    expect(narrow.line).not.toContain('↻')
+    expect((await row(500)).cols).toBe(10) // capped: a wide row spreads its chips instead
+  })
+}
+
+test('plain /hud brings back a hidden band', async ($, on) => {
+  engine(on, world())
+  await $.session.start(start)
+  await $.command.run({ command: 'hud', args: 'hide' } as never)
+  await $.command.run({ command: 'hud', args: '' } as never)
+  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  expect(await ui.find({ key: 'open-context-ctx' })).toBeDefined()
+})
+
+test('the open drawer shows on its chip and on the toggle', async ($, on) => {
+  engine(on, world())
+  await $.session.start(start)
+  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  const dim = async () => ((await ui.find({ key: 'open-limits-5h' })) as Found | undefined)?.props?.dimColor
+  expect(await dim()).toBe(true)
+  await ui.press({ key: 'open-limits-5h' })
+  expect(await dim()).toBe(false) // the open chip's name comes up to full strength
+  expect(((await ui.find({ key: 'expand' })) as Found | undefined)?.props?.label).toBe('▴')
 })

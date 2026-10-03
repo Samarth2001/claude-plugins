@@ -65,46 +65,6 @@ export function heat(percent: number): string {
   return '#e5534b'
 }
 
-const BARS = ' ▁▂▃▄▅▆▇█'
-
-// One bar per value, 0-100.
-export function spark(percent: number): string {
-  const i = Math.round((clamp(percent) / 100) * 7) + 1
-  return BARS[i] ?? '▁'
-}
-
-// A meter `cells` wide. `mark` is where an even pace would be by now, drawn
-// as its own cell so the bar reads "ahead of pace" or "behind" at a glance.
-export function meter(percent: number, cells: number, mark?: number): { filled: string; empty: string; markAt?: number } {
-  const n = Math.round((clamp(percent) / 100) * cells)
-  const markAt = mark === undefined ? undefined : Math.min(cells - 1, Math.floor((clamp(mark) / 100) * cells))
-  return { filled: '━'.repeat(n), empty: '─'.repeat(cells - n), markAt }
-}
-
-// Columns `rows` tall from eighth blocks, top row first; each value 0-1.
-export function columns(values: number[], rows: number): string[][] {
-  const out: string[][] = Array.from({ length: rows }, () => [])
-  for (const v of values) {
-    let level = Math.round(Math.max(0, Math.min(1, v)) * rows * 8)
-    if (v > 0 && level === 0) level = 1 // a cent still shows
-    for (let r = rows - 1; r >= 0; r--) {
-      const here = Math.min(8, level)
-      out[r]?.push(BARS[here] ?? ' ')
-      level -= here
-    }
-  }
-  return out
-}
-
-// A heartbeat trace that scrolls while Claude works and lies flat at rest.
-const BEAT = '⣀⣀⣀⡠⠊⠑⢄⣀⣀⣀⣀⣀⡠⠔⠁⠈⠢⣀⣀⣀'
-export function ekg(frame: number, width: number, isWorking: boolean): string {
-  if (!isWorking) return '⣀'.repeat(width)
-  let out = ''
-  for (let i = 0; i < width; i++) out += BEAT[(frame + i) % BEAT.length]
-  return out
-}
-
 export type Pace = {
   // Where an even burn would put the window by now, 0-100.
   expected: number
@@ -273,6 +233,6 @@ export function forecast(tokens: number[], window: number): { perTurn: number; t
   return { perTurn, turnsLeft: perTurn > 0 ? Math.max(0, Math.floor((window - last) / perTurn)) : undefined }
 }
 
-function clamp(percent: number): number {
+export function clamp(percent: number): number {
   return Math.min(100, Math.max(0, percent))
 }

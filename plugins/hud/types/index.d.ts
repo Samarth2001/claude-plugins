@@ -49,7 +49,7 @@ export type View = { mode: Mode; tab: Tab; range: Range }
 
 declare module 'claude-code' {
   interface PluginState {
-    pulse: {
+    hud: {
       snapshot: Snapshot | null
       turns: Turn[]
       live: Live

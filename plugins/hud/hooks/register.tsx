@@ -3,7 +3,7 @@ import type { EngineInterface, Register, SessionUsage } from 'claude-code'
 
 import type { Ledger, Limit, Live, Snapshot, Tab, Turn, View } from '../types'
 import { LIMIT_LABELS, addDays, cacheHit, dayKey, formatSpan, toolGroup } from './calc'
-import { dashboard, drawer, glance } from './draw'
+import { FLASH_MS, dashboard, drawer, glance } from './draw'
 import type { Actions, Data } from './draw'
 
 const IDLE: Live = {
@@ -18,17 +18,20 @@ const IDLE: Live = {
 }
 const DEFAULT_VIEW: View = { mode: 'glance', tab: 'limits', range: 'week' }
 
-const snapshot = atom({ plugin: 'pulse', key: 'snapshot' } as const, null)
-const turns = atom({ plugin: 'pulse', key: 'turns' } as const, [])
-const live = atom({ plugin: 'pulse', key: 'live' } as const, IDLE)
-const ledger = atom({ plugin: 'pulse', key: 'ledger' } as const, { days: {} })
-const view = atom({ plugin: 'pulse', key: 'view' } as const, DEFAULT_VIEW)
+const snapshot = atom({ plugin: 'hud', key: 'snapshot' } as const, null)
+const turns = atom({ plugin: 'hud', key: 'turns' } as const, [])
+const live = atom({ plugin: 'hud', key: 'live' } as const, IDLE)
+const ledger = atom({ plugin: 'hud', key: 'ledger' } as const, { days: {} })
+const view = atom({ plugin: 'hud', key: 'view' } as const, DEFAULT_VIEW)
 
-const PANE = 'pulse'
+const PANE = 'hud'
 const HISTORY = 40
 const TICK_MS = 140
+// Off the terminal, motion runs inside the drawings, so a turn redraws only as
+// often as its clock changes: each redraw may reload every drawing.
+const VECTOR_TICK_MS = 1000
 const IDLE_REDRAW_MS = 20_000
-const FLASH_MS = 1400
+
 const LEDGER_REFRESH_MS = 5 * 60_000
 const KEEP_DAYS = 400
 const ALERTS = [80, 95]
@@ -53,20 +56,27 @@ function toSnapshot(usage: Pick<SessionUsage, 'context' | 'rateLimits' | 'cost'>
   }
 }
 
-// Sums every session's spend per day from the store, dropping old days.
+// Sums every session's spend per day from the store, dropping old days and
+// the last-seen totals of sessions not heard from since then.
 async function loadLedger($: $, now: number): Promise<Ledger> {
   const oldest = addDays(dayKey(now), -KEEP_DAYS)
   const days: Record<string, number> = {}
-  for (const key of await $.store.keys()) {
-    if (!key.startsWith('spent:')) continue
-    const day = key.slice(6, 16)
-    if (day < oldest) {
-      await $.store.delete(key)
-      continue
+  const keys = (await $.store.keys()).filter(key => key.startsWith('spent:') || key.startsWith('seen:'))
+  const values = await Promise.all(keys.map(key => $.store.get(key)))
+  const stale: string[] = []
+  keys.forEach((key, i) => {
+    const value = values[i]
+    if (key.startsWith('seen:')) {
+      const day = (value as { day?: string } | undefined)?.day
+      if (day !== undefined && day < oldest) stale.push(key)
+      return
     }
-    const usd = Number(await $.store.get(key))
+    const day = key.slice(6, 16)
+    if (day < oldest) return void stale.push(key)
+    const usd = Number(value)
     if (Number.isFinite(usd)) days[day] = (days[day] ?? 0) + usd
-  }
+  })
+  await Promise.all(stale.map(key => $.store.delete(key)))
   let since = (await $.store.get(SINCE_KEY)) as string | undefined
   if (since === undefined) {
     since = Object.keys(days).sort()[0] ?? dayKey(now)
@@ -80,6 +90,17 @@ async function loadLedger($: $, now: number): Promise<Ledger> {
 let costQueue: Promise<void> = Promise.resolve()
 const alerted = new Set<string>()
 let isFirstMeasure = true
+// Whether the chips should be tinted for a light theme; read at session start.
+let isLight = false
+
+async function readTheme($: $): Promise<boolean> {
+  try {
+    const row = (await $.config.list()).find(r => r.key === 'theme')
+    return typeof row?.value === 'string' && row.value.includes('light')
+  } catch {
+    return false
+  }
+}
 
 // Adds what this session spent since the last reading to today's bucket.
 function recordCost($: $, usd: number): Promise<void> {
@@ -109,7 +130,7 @@ function checkAlerts($: $, limits: Limit[], now: number): void {
       alerted.add(id)
       if (isFirstMeasure) continue
       const resets = limit.resetsAt ? `, resets in ${formatSpan(Date.parse(limit.resetsAt) - now)}` : ''
-      $.ui.toast(`pulse: ${LIMIT_LABELS[limit.kind] ?? limit.kind} limit at ${Math.round(limit.percentUsed)}%${resets}`, { timeoutMs: 6000 })
+      $.ui.toast(`HUD: ${LIMIT_LABELS[limit.kind] ?? limit.kind} limit at ${Math.round(limit.percentUsed)}%${resets}`, { timeoutMs: 6000 })
     }
   }
   isFirstMeasure = false
@@ -123,7 +144,7 @@ async function setView($: $, change: Partial<View>): Promise<void> {
 function actions($: $): Actions {
   return {
     setView: change => void setView($, change),
-    openPane: () => void $.ui.open({ id: PANE, title: 'Pulse', columns: 96 }),
+    openPane: () => void $.ui.open({ id: PANE, title: 'HUD', columns: 96 }),
   }
 }
 
@@ -137,21 +158,26 @@ async function data($: $, snap: Snapshot): Promise<Data> {
     view: await read($, view),
     now,
     today: dayKey(now),
+    isLight,
   }
 }
 
 export const register: Register = on => {
   // Redraw pacing only; everything drawn comes from $.state.
   let isAnimating = false
-  let lastIdleDraw = 0
+  let lastDraw = 0
+  // When a terminal last drew the band or the pane; until one does, the
+  // drawings animate themselves and a turn redraws once a second.
+  let lastTerminalDraw = 0
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
     await $.command.register({
-      name: 'pulse',
-      description: 'Usage cockpit: "/pulse" opens the dashboard; glance, detail, hide or show sets the band',
+      name: 'hud',
+      description: 'Usage cockpit: "/hud" opens the dashboard and brings back a hidden band; glance, detail, hide or show sets the band',
     })
     const now = await $.clock.now()
+    isLight = await readTheme($)
     const usage = await $.session.usage()
     await update($, snapshot, () => toSnapshot(usage))
     const model = await $.session.model()
@@ -165,13 +191,23 @@ export const register: Register = on => {
     $.clock.every(TICK_MS, () => {
       void (async () => {
         const t = await $.clock.now()
-        if (isAnimating || t - lastIdleDraw >= IDLE_REDRAW_MS) {
-          lastIdleDraw = t
+        const redraw = () => {
+          lastDraw = t
           $.ui.invalidate('ui.render')
         }
-        if (!isAnimating) return // events wake it; idle ticks cost nothing more
+        if (!isAnimating) {
+          // Events wake it; at rest the band redraws now and then for its clocks.
+          if (t - lastDraw >= IDLE_REDRAW_MS) redraw()
+          return
+        }
         const l = await read($, live)
-        isAnimating = l.isWorking || Math.max(l.flash.context, l.flash.limits, l.flash.cost) > t
+        const isGlowing = Math.max(l.flash.context, l.flash.limits, l.flash.cost) > t
+        // The terminal's spinner and glow step frame by frame. Vectors move on
+        // their own and a redraw may reload them all, so off the terminal a
+        // turn or a glow redraws only as often as its clock changes.
+        const isTerminal = t - lastTerminalDraw < 5_000
+        if (isTerminal || t - lastDraw >= VECTOR_TICK_MS - TICK_MS / 2) redraw()
+        isAnimating = l.isWorking || isGlowing
       })()
     })
     $.clock.every(LEDGER_REFRESH_MS, () => {
@@ -184,22 +220,32 @@ export const register: Register = on => {
     return result
   })
 
-  on('command.run', { command: 'pulse' }, async ($, e) => {
+  // Re-tint the chips when the theme changes mid-session.
+  on('config.set', { key: 'theme' }, async ($, e, next) => {
+    const result = await next(e)
+    isLight = await readTheme($)
+    $.ui.invalidate('ui.render')
+    return result
+  })
+
+  on('command.run', { command: 'hud' }, async ($, e) => {
     const arg = e.args.trim().toLowerCase()
     if (arg === 'glance' || arg === 'detail') {
       await setView($, { mode: arg })
-      return { text: `pulse shows the ${arg} band now.` }
+      return { text: `HUD shows the ${arg} band now.` }
     }
     if (arg === 'hide' || arg === 'show') {
       await setView($, { mode: arg === 'hide' ? 'hidden' : 'glance' })
-      return { text: arg === 'hide' ? 'pulse is hidden. /pulse show brings it back.' : 'pulse is back.' }
+      return { text: arg === 'hide' ? 'HUD is hidden. /hud or /hud show brings it back.' : 'HUD is back.' }
     }
     if ((TABS as string[]).includes(arg)) {
       await setView($, { mode: 'detail', tab: arg as Tab })
-      return { text: `pulse shows ${arg}.` }
+      return { text: `HUD shows ${arg}.` }
     }
-    const opened = await $.ui.open({ id: PANE, title: 'Pulse', focus: true, columns: 96 })
-    return { text: opened.isPlaced ? 'Pulse dashboard opened.' : 'Pulse dashboard opens once the terminal has room.' }
+    // Plain /hud also brings back a hidden band: the band has nothing left to press.
+    if ((await read($, view)).mode === 'hidden') await setView($, { mode: 'glance' })
+    const opened = await $.ui.open({ id: PANE, title: 'HUD', focus: true, columns: 96 })
+    return { text: opened.isPlaced ? 'HUD dashboard opened.' : 'HUD dashboard opens once the terminal has room.' }
   })
 
   on('session.measure', async ($, e, next) => {
@@ -290,24 +336,26 @@ export const register: Register = on => {
     const v = await read($, view)
     if (e.props.hasSurvey || snap === null || v.mode === 'hidden' || e.props.maxRows < 1) return next(e)
 
-    const s = { ui: $.ui.resolve(e), isTerminal: e.surface === 'terminal' }
+    const s = { ui: $.ui.resolve(e), isTerminal: e.surface === 'terminal', now: await $.clock.now() }
+    if (s.isTerminal) lastTerminalDraw = s.now
     const { Box } = s.ui
     const d = await data($, snap)
     d.live = { ...d.live, isWorking: d.live.isWorking || e.props.isWorking }
-    const width = e.props.bodyColumns
+    // The terminal draws its own [-] in the band's top-right corner; leave it room.
+    const width = e.props.bodyColumns - (s.isTerminal ? 4 : 0)
     const act = actions($)
     const rows = v.mode === 'detail' && e.props.maxRows >= 2 ? drawer(s, d, width, act).slice(0, e.props.maxRows - 1) : []
-    // The terminal draws its own [-] in the band's top corner.
     return (
       <Box flexDirection="column">
-        <Box marginRight={s.isTerminal ? 4 : 0}>{glance(s, d, width, act)}</Box>
+        <Box width={width}>{glance(s, d, width, act)}</Box>
         {rows}
       </Box>
     )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const s = { ui: $.ui.resolve(e), isTerminal: e.surface === 'terminal' }
+    const s = { ui: $.ui.resolve(e), isTerminal: e.surface === 'terminal', now: await $.clock.now() }
+    if (s.isTerminal) lastTerminalDraw = s.now
     const snap = (await read($, snapshot)) ?? { window: 0, limits: [] }
     const d = await data($, snap)
     return dashboard(s, d, e.props.bodyColumns, actions($))

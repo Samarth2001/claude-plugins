@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { addDays, columns, ekg, forecast, formatTokens, formatUsd, meter, pace, series, summarize } from './calc'
+import { addDays, forecast, formatTokens, formatUsd, pace, series, summarize } from './calc'
 
 const HOUR = 3_600_000
 const NOW = Date.UTC(2026, 9, 15, 12)
@@ -69,22 +69,6 @@ describe('ledger', () => {
 })
 
 describe('drawing helpers', () => {
-  test('meter marks the even-pace cell', async () => {
-    expect(meter(50, 10, 75)).toEqual({ filled: '━━━━━', empty: '─────', markAt: 7 })
-    expect(meter(100, 4).markAt).toBeUndefined()
-  })
-
-  test('columns stack eighth blocks two rows tall', async () => {
-    const [top, bottom] = columns([0, 0.5, 1, 0.01], 2)
-    expect(top).toEqual([' ', ' ', '█', ' '])
-    expect(bottom).toEqual([' ', '█', '█', '▁'])
-  })
-
-  test('the heartbeat scrolls while working and lies flat at rest', async () => {
-    expect(ekg(0, 6, true)).not.toBe(ekg(3, 6, true))
-    expect(ekg(0, 4, false)).toBe('⣀⣀⣀⣀')
-  })
-
   test('forecast skips compactions and counts turns left', async () => {
     const f = forecast([100_000, 150_000, 40_000, 90_000], 1_000_000)
     expect(f?.perTurn).toBe(50_000)
