@@ -8,10 +8,10 @@ Replaces buddy, which is removed from the marketplace. Existing buddy installs m
 
 ### Added
 
-- A one-line glance above the prompt: a heartbeat trace that scrolls while Claude works, the turn's clock and tool count, a context sparkline, plan limit meters with an even-pace mark and the 5-hour reset countdown, and spend for this session, today and this month.
-- `more` expands the band into four tabs (hotkeys `1` to `4`): Context (fill, tokens, last turn's jump, average growth, turns left, cache hit), Limits (meters, reset times, pace ratio, where each window lands at reset or when it fills), Cost (a bar chart over 7 days, 30 days or 12 months, today, 7 days, this month, a month-end forecast, last month, daily average, session tokens) and Turns (recent turns with duration, tools, context growth, cost and cache hit, plus the session's tool mix).
-- `/pulse` opens a dashboard pane with every section at once.
+- One slim row above the prompt: a heartbeat with the turn's clock and tool count, context, each plan limit with a meter and an even-pace tick, and spend for the session and the month.
+- Drawn gauges on every surface: colored cell grids in the terminal (a fading heartbeat trace, green-to-red meters, bar and area charts) and small animated SVGs on desktop and VS Code (a scrolling pulse with a ripple, a context ring, capsule meters that slide to new values, charts that grow in).
+- Press a label to open a one-row drawer: turns as a timeline with the tool mix; context per turn with growth, turns left and cache hit; plan limits with pace and where each lands at reset; spend as bars over 7 days, 30 days or 12 months with a month-end forecast.
+- `/pulse` or `⤢` opens a dashboard pane with every drawer, larger.
 - A spend ledger in the plugin's store, kept per session and per local day so sessions running side by side don't overwrite each other; days older than 400 days are pruned.
 - A value that just changed glows for a moment; a toast when a plan limit crosses 80% and 95%.
-- The band's tabs are labeled with their hotkeys; the open tab is underlined.
-- `/pulse glance`, `/pulse detail`, `/pulse context|limits|cost|turns`, `/pulse hide`, `/pulse show`. The band's mode, tab and range are remembered across sessions.
+- `/pulse context|limits|cost|turns`, `/pulse glance`, `/pulse detail`, `/pulse hide`, `/pulse show`. The open drawer and chart range are remembered across sessions.

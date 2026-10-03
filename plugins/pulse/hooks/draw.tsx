@@ -1,33 +1,30 @@
-// What pulse draws: the glance row, the tab bodies and the dashboard pane.
-// Every function takes the surface's element table and plain data, so the
-// band and the pane share one set of rows.
+// What pulse draws. The band is one row; pressing a label opens one drawer row
+// under it with that metric's detail. The pane shows every drawer, larger.
 
-import type { ElementTable, RenderElement } from 'claude-code'
+import type { RenderElement } from 'claude-code'
 
 import type { Ledger, Limit, Live, Range, Snapshot, Tab, Turn, View } from '../types'
 import {
   LIMIT_LABELS,
   addDays,
   cacheHit,
-  columns,
-  ekg,
   forecast,
   formatDuration,
   formatSpan,
   formatTokens,
   formatUsd,
+  heat,
   levelColor,
-  meter,
+  monthName,
   pace,
   paceColor,
   series,
   shortDate,
   shorten,
-  spark,
   summarize,
 } from './calc'
-
-export type Ui = Pick<ElementTable, 'Box' | 'Text' | 'Button'>
+import { ACCENT, area, bar, columns, ring, timeline, wave } from './widgets'
+import type { Surface } from './widgets'
 
 export type Data = {
   snap: Snapshot
@@ -44,389 +41,331 @@ export type Actions = {
   openPane: () => void
 }
 
-export const ACCENT = '#B4A7F5'
-const BAR = '#7FB2F0'
+export { ACCENT }
 const GOOD = '#7BC96F'
+const WARN = '#E8964A'
 const FRAME_MS = 140
 
-export const TABS: { tab: Tab; label: string; hotkey: string }[] = [
-  { tab: 'context', label: 'Context', hotkey: '1' },
-  { tab: 'limits', label: 'Limits', hotkey: '2' },
-  { tab: 'cost', label: 'Cost', hotkey: '3' },
-  { tab: 'turns', label: 'Turns', hotkey: '4' },
+const RANGES: { range: Range; label: string }[] = [
+  { range: 'week', label: '7d' },
+  { range: 'month', label: '30d' },
+  { range: 'year', label: '12mo' },
 ]
 
-const RANGES: { range: Range; label: string; hotkey: string }[] = [
-  { range: 'week', label: '7d', hotkey: 'w' },
-  { range: 'month', label: '30d', hotkey: 'm' },
-  { range: 'year', label: '12mo', hotkey: 'y' },
-]
-
-// A little text toolkit over one element table.
-function kit(ui: Ui) {
-  const { Box, Text } = ui
+function kit(s: Surface) {
+  const { Box, Text } = s.ui
   return {
     dim: (text: string) => <Text dimColor>{text}</Text>,
     plain: (text: string) => <Text>{text}</Text>,
     paint: (text: string, color: string, bold = false) => <Text color={color} bold={bold}>{text}</Text>,
-    // A value that just changed glows for a moment: the live-update cue.
+    // A value that just changed glows for a moment.
     live: (text: string, color: string | undefined, isFlashing: boolean) => (
       <Text color={color} bold inverse={isFlashing}>{text}</Text>
     ),
-    row: (key: string, parts: RenderElement[]) => <Box key={key} overflow="hidden">{parts}</Box>,
+    row: (key: string, parts: RenderElement[]) => <Box key={key} alignItems="center" overflow="hidden">{parts}</Box>,
+    gap: (n: number) => <Text>{' '.repeat(n)}</Text>,
   }
 }
 
-function meterParts(ui: Ui, limit: Limit, cells: number, now: number): RenderElement[] {
-  const { Text } = ui
-  const p = pace(limit, now)
-  const color = paceColor(limit, p)
-  const { filled, empty, markAt } = meter(limit.percentUsed, cells, p?.expected)
-  const bar = filled + empty
-  if (markAt === undefined) return [<Text color={color}>{filled}</Text>, <Text dimColor>{empty}</Text>]
-  // Split the bar around the even-pace mark.
-  const before = bar.slice(0, markAt)
-  const after = bar.slice(markAt + 1)
-  const split = (text: string, offset: number) => {
-    const n = Math.max(0, Math.min(text.length, filled.length - offset))
-    return [<Text color={color}>{text.slice(0, n)}</Text>, <Text dimColor>{text.slice(n)}</Text>]
-  }
-  return [...split(before, 0), <Text color={markAt < filled.length ? color : undefined} bold>┃</Text>, ...split(after, markAt + 1)]
+const isFlashing = (d: Data, unit: keyof Live['flash']) => d.live.flash[unit] > d.now
+
+// A label that opens its drawer, or closes it when it is the open one.
+function label(s: Surface, d: Data, actions: Actions, tab: Tab, text: string): RenderElement {
+  const { Button } = s.ui
+  const isOpen = d.view.mode === 'detail' && d.view.tab === tab
+  return (
+    <Button key={`open-${tab}-${text}`} label={text} plain dimColor={!isOpen}
+      onPress={() => actions.setView(isOpen ? { mode: 'glance' } : { mode: 'detail', tab })} />
+  )
 }
 
-// One line, always: what is happening and the four numbers that matter.
-export function glance(ui: Ui, d: Data, width: number, actions: Actions, isPane = false): RenderElement {
-  const { Box, Button } = ui
-  const t = kit(ui)
+// The one row: heartbeat, context, each plan limit, money.
+export function glance(s: Surface, d: Data, width: number, actions: Actions, isPane = false): RenderElement {
+  const { Box, Button } = s.ui
+  const t = kit(s)
   const { snap, live, now } = d
   const isWide = width >= 120
   const isMid = width >= 84
-  const sep = t.dim(isWide ? '  │  ' : isMid ? ' │ ' : ' · ')
+  const space = isWide ? 3 : isMid ? 2 : 1
   const parts: RenderElement[] = []
+  const between = () => parts.push(t.gap(space))
 
-  // The heartbeat, then the turn's clock while working.
-  const frame = Math.floor(now / FRAME_MS)
-  parts.push(<ui.Text color={live.isWorking ? ACCENT : undefined} dimColor={!live.isWorking}>{ekg(frame, isMid ? 6 : 3, live.isWorking)}</ui.Text>)
+  // Heartbeat and the turn's clock.
+  parts.push(wave(s, live.isWorking, Math.floor(now / FRAME_MS), isMid ? 6 : 3), t.gap(1))
   if (live.isWorking) {
-    parts.push(t.plain(` ${formatDuration(now - live.turnStartedAt)}`))
+    parts.push(t.paint(formatDuration(now - live.turnStartedAt), ACCENT))
     if (isWide && live.toolsThisTurn > 0) parts.push(t.dim(` · ${live.toolsThisTurn} tool${live.toolsThisTurn === 1 ? '' : 's'}`))
-  } else if (isWide) {
-    parts.push(t.dim(' idle'))
+  } else {
+    parts.push(label(s, d, actions, 'turns', isMid ? 'idle' : '·'))
   }
 
   // Context.
-  parts.push(sep, t.dim('ctx '))
-  const percent = snap.percent
-  if (percent === undefined) {
-    parts.push(t.dim('after the first turn'))
+  between()
+  parts.push(label(s, d, actions, 'context', 'ctx'), t.gap(1))
+  if (snap.percent === undefined) {
+    parts.push(t.dim('—'))
   } else {
     if (isMid) {
-      const history = d.turns.slice(isWide ? -8 : -4).map(turn => turn.percent)
-      for (const p of history) parts.push(t.paint(spark(p), levelColor(p)))
-      if (history.length > 0) parts.push(t.plain(' '))
+      const gauge = s.isTerminal && isWide
+        ? area(s, 'ctx-spark', [...d.turns.map(x => x.percent), snap.percent].slice(-6), 6)
+        : ring(s, snap.percent, isFlashing(d, 'context') ? live.previous.percent : undefined)
+      parts.push(gauge, t.gap(1))
     }
-    parts.push(t.live(`${percent}%`, levelColor(percent), live.flash.context > now))
+    parts.push(t.live(`${snap.percent}%`, levelColor(snap.percent), isFlashing(d, 'context')))
   }
 
-  // Plan limits, each with a meter on wide screens.
-  const flashLimits = live.flash.limits > now
+  // Plan limits.
   for (const limit of snap.limits) {
-    parts.push(sep, t.dim(`${LIMIT_LABELS[limit.kind] ?? limit.kind} `))
-    if (isWide) parts.push(...meterParts(ui, limit, 6, now), t.plain(' '))
-    parts.push(t.live(`${Math.round(limit.percentUsed)}%`, paceColor(limit, pace(limit, now)), flashLimits))
-    if (isMid && limit.kind === 'five_hour' && limit.resetsAt) {
-      parts.push(t.dim(` ↻${formatSpan(Date.parse(limit.resetsAt) - now)}`))
+    const p = pace(limit, now)
+    between()
+    parts.push(label(s, d, actions, 'limits', LIMIT_LABELS[limit.kind] ?? limit.kind), t.gap(1))
+    if (isMid) {
+      const from = isFlashing(d, 'limits') ? live.previous.limits[limit.kind] : undefined
+      parts.push(bar(s, `bar-${limit.kind}`, limit.percentUsed, isWide ? 8 : 5, p?.expected, from), t.gap(1))
     }
+    parts.push(t.live(`${Math.round(limit.percentUsed)}%`, paceColor(limit, p), isFlashing(d, 'limits')))
+    if (isWide && limit.kind === 'five_hour' && limit.resetsAt) parts.push(t.dim(` ↻${formatSpan(Date.parse(limit.resetsAt) - now)}`))
   }
 
-  // Money: this session, then today and this month across sessions.
+  // Money.
   if (snap.usd !== undefined) {
     const spend = summarize(d.ledger, d.today)
-    parts.push(sep, t.live(formatUsd(snap.usd), undefined, live.flash.cost > now))
-    if (isMid) parts.push(t.dim(' · today '), t.plain(formatUsd(spend.today)))
+    between()
+    parts.push(label(s, d, actions, 'cost', isMid ? 'cost' : '$'), t.gap(1), t.live(formatUsd(snap.usd), undefined, isFlashing(d, 'cost')))
     if (isWide) parts.push(t.dim(` · ${spend.monthLabel} `), t.plain(formatUsd(spend.month)))
   }
 
-  const isDetail = d.view.mode === 'detail'
+  const isOpen = d.view.mode === 'detail'
   return (
-    <Box key="glance">
-      <Box flexGrow={1} overflow="hidden">{parts}</Box>
+    <Box key="glance" alignItems="center">
+      <Box flexGrow={1} alignItems="center" overflow="hidden">{parts}</Box>
       {isPane ? null : (
         <Box marginLeft={2}>
-          <Button key="expand" label={isDetail ? '▴ less' : '▾ more'} hotkey="e" plain dimColor
-            onPress={() => actions.setView({ mode: isDetail ? 'glance' : 'detail' })} />
+          <Button key="expand" label={isOpen ? '▴' : '▾'} plain dimColor onPress={() => actions.setView({ mode: isOpen ? 'glance' : 'detail' })} />
         </Box>
       )}
     </Box>
   )
 }
 
-// The tab strip under the glance row: tabs left, range and pane right.
-// Ranges ride in the tab strip when it has room, else atop the Cost tab.
-const RANGES_IN_STRIP = 90
-
-// The tab strip under the glance row: tabs left, range and pane right.
-export function tabBar(ui: Ui, d: Data, width: number, actions: Actions, isTerminal: boolean): RenderElement {
-  const { Box, Button, Text } = ui
-  const tabs = TABS.map(({ tab, label, hotkey }) => (
-    <Box key={`tab-${tab}`} marginRight={2}>
-      {d.view.tab === tab ? (
-        <Box>
-          <Text color={ACCENT}>{hotkey}: </Text>
-          <Text color={ACCENT} bold underline>{label}</Text>
-        </Box>
-      ) : (
-        <Button key={tab} label={label} hotkey={hotkey} plain dimColor onPress={() => actions.setView({ tab })} />
-      )}
+// The open drawer's rows, at most two, under the glance row.
+export function drawer(s: Surface, d: Data, width: number, actions: Actions): RenderElement[] {
+  const { Box, Button, Text } = s.ui
+  const rows = section(s, d, d.view.tab, width, actions, false)
+  // The terminal draws its own [-] in the band's corner; elsewhere, hide.
+  const controls = (
+    <Box key="drawer-controls" marginLeft={2}>
+      <Button key="pane" label="⤢" plain dimColor onPress={actions.openPane} />
+      {s.isTerminal ? null : <Box marginLeft={1}><Button key="hide" label="hide" plain dimColor onPress={() => actions.setView({ mode: 'hidden' })} /></Box>}
+    </Box>
+  )
+  return rows.map((row, i) => (
+    <Box key={`drawer-${i}`} alignItems="center">
+      {s.isTerminal ? <Text dimColor>{i === rows.length - 1 ? '╰ ' : '│ '}</Text> : null}
+      <Box flexGrow={1} overflow="hidden">{row}</Box>
+      {i === 0 ? controls : null}
     </Box>
   ))
-  const ranges = d.view.tab === 'cost' && width >= RANGES_IN_STRIP ? rangeButtons(ui, d, actions) : null
-  return (
-    <Box key="tabs">
-      {tabs}
-      <Box flexGrow={1} />
-      {ranges}
-      <Button key="pane" label={width >= 90 ? 'dashboard' : 'pane'} hotkey="p" plain dimColor onPress={actions.openPane} />
-      {isTerminal ? <Box marginRight={4} /> : (
-        <Box marginLeft={2}>
-          <Button key="hide" label="hide" plain dimColor onPress={() => actions.setView({ mode: 'hidden' })} />
-        </Box>
-      )}
-    </Box>
-  )
 }
 
-function rangeButtons(ui: Ui, d: Data, actions: Actions): RenderElement {
-  const { Box, Button } = ui
-  return (
-    <Box key="ranges" marginRight={2}>
-      {RANGES.map(({ range, label, hotkey }) => (
-        <Box key={`range-${range}`} marginRight={1}>
-          <Button key={range} label={label} hotkey={hotkey} plain dimColor={d.view.range !== range} onPress={() => actions.setView({ range })} />
-        </Box>
-      ))}
-    </Box>
-  )
-}
-
-export function body(ui: Ui, d: Data, tab: Tab, width: number, rows: number, actions?: Actions): RenderElement[] {
-  if (rows <= 0) return []
+// One metric's detail. In the band each section is one or two rows; in the
+// pane (`big`) it takes more room and taller charts.
+export function section(s: Surface, d: Data, tab: Tab, width: number, actions: Actions, big: boolean): RenderElement[] {
   switch (tab) {
     case 'context':
-      return contextRows(ui, d, width, rows)
+      return contextRows(s, d, width, big)
     case 'limits':
-      return limitRows(ui, d, width, rows)
+      return limitRows(s, d, width, big)
     case 'cost':
-      if (actions && width < RANGES_IN_STRIP) return [rangeButtons(ui, d, actions), ...costRows(ui, d, width, rows - 1)]
-      return costRows(ui, d, width, rows)
+      return costRows(s, d, width, actions, big)
     case 'turns':
-      return turnRows(ui, d, width, rows)
+      return turnRows(s, d, width, big)
   }
 }
 
-function contextRows(ui: Ui, d: Data, width: number, rows: number): RenderElement[] {
-  const t = kit(ui)
-  const { snap, turns, live, now } = d
-  if (snap.percent === undefined) return [t.row('ctx-none', [t.dim('Context is measured after the first response.')])]
-
-  const out: RenderElement[] = []
-  const history = turns.slice(-Math.max(4, Math.min(32, width - 60)))
-  const first: RenderElement[] = []
-  for (const turn of history) first.push(t.paint(spark(turn.percent), levelColor(turn.percent)))
-  if (history.length > 0) first.push(t.plain('  '))
-  first.push(t.live(`${snap.percent}%`, levelColor(snap.percent), live.flash.context > now))
-  if (snap.tokens !== undefined) first.push(t.dim(`  ${formatTokens(snap.tokens)} of ${formatTokens(snap.window)} tokens`))
+function contextRows(s: Surface, d: Data, width: number, big: boolean): RenderElement[] {
+  const t = kit(s)
+  const { snap, turns, live } = d
+  if (snap.percent === undefined) return [t.row('ctx', [t.dim('Context is measured after the first response.')])]
+  const history = [...turns.map(x => x.percent), snap.percent]
+  const parts: RenderElement[] = [
+    area(s, 'ctx-area', history, big ? 40 : width >= 120 ? 24 : 12), t.gap(2),
+    t.live(`${snap.percent}%`, levelColor(snap.percent), isFlashing(d, 'context')),
+  ]
+  if (snap.tokens !== undefined) parts.push(t.dim(`  ${formatTokens(snap.tokens)} of ${formatTokens(snap.window)} tokens`))
   const last = turns.at(-1)
   const before = turns.at(-2)
   if (last && before && last.tokens !== before.tokens) {
     const delta = last.tokens - before.tokens
-    first.push(t.dim('  last turn '), t.paint(`${delta > 0 ? '▲' : '▼'}${formatTokens(Math.abs(delta))}`, delta > 0 ? levelColor(snap.percent) : GOOD))
+    parts.push(t.gap(2), t.paint(`${delta > 0 ? '▲' : '▼'}${formatTokens(Math.abs(delta))}`, delta > 0 ? levelColor(snap.percent) : GOOD), t.dim(' last turn'))
   }
-  out.push(t.row('ctx-1', first))
-
   const second: RenderElement[] = []
-  const f = forecast(turns.map(turn => turn.tokens), snap.window)
+  const f = forecast(turns.map(x => x.tokens), snap.window)
   if (f) {
-    second.push(t.dim('avg '), t.plain(`+${formatTokens(f.perTurn)}`), t.dim(' per turn'))
-    if (f.turnsLeft !== undefined) second.push(t.dim(' · '), t.paint(`~${f.turnsLeft} turns`, levelColor(snap.percent)), t.dim(' to full'))
-  } else {
-    second.push(t.dim('a forecast shows after two turns'))
+    second.push(t.dim('+'), t.plain(formatTokens(f.perTurn)), t.dim('/turn'))
+    if (f.turnsLeft !== undefined) second.push(t.dim(' · '), t.paint(`~${f.turnsLeft}`, levelColor(snap.percent)), t.dim(' turns left'))
   }
-  const hit = last?.cacheHit
-  if (hit !== undefined) second.push(t.dim(' · cache '), t.paint(`${hit}%`, hit >= 70 ? GOOD : levelColor(100 - hit)), t.dim(' last turn'))
-  out.push(t.row('ctx-2', second))
-
-  const third: RenderElement[] = []
-  if (live.model) third.push(t.plain(live.model.replace(/^claude-/, '')), t.dim(' · '))
-  third.push(t.dim(`${turns.length} turn${turns.length === 1 ? '' : 's'}`))
-  if (snap.percent >= 80) third.push(t.dim(' · '), t.paint('/compact soon', levelColor(snap.percent)))
-  out.push(t.row('ctx-3', third))
-  return out.slice(0, rows)
+  if (last?.cacheHit !== undefined) second.push(t.dim(second.length ? ' · cache ' : 'cache '), t.paint(`${last.cacheHit}%`, last.cacheHit >= 70 ? GOOD : WARN))
+  if (live.model) second.push(t.dim(`${second.length ? ' · ' : ''}${live.model.replace(/^claude-/, '')}`))
+  if (snap.percent >= 80) second.push(t.dim(' · '), t.paint('/compact soon', levelColor(snap.percent)))
+  if (big || width < 150) return [t.row('ctx-1', parts), t.row('ctx-2', second)]
+  return [t.row('ctx-1', [...parts, t.dim('   '), ...second])]
 }
 
-function limitRows(ui: Ui, d: Data, width: number, rows: number): RenderElement[] {
-  const t = kit(ui)
-  const { snap, now } = d
-  if (snap.limits.length === 0) {
-    return [t.row('limits-none', [t.dim('No plan limits reported yet. They show after a response on a subscription.')])]
+function limitRow(s: Surface, d: Data, limit: Limit, cols: number): RenderElement[] {
+  const t = kit(s)
+  const p = pace(limit, d.now)
+  const color = paceColor(limit, p)
+  const from = isFlashing(d, 'limits') ? d.live.previous.limits[limit.kind] : undefined
+  const parts: RenderElement[] = [
+    t.dim((LIMIT_LABELS[limit.kind] ?? limit.kind).padEnd(3)), t.gap(1),
+    bar(s, `wide-${limit.kind}`, limit.percentUsed, cols, p?.expected, from), t.gap(2),
+    t.live(`${Math.round(limit.percentUsed)}%`, color, isFlashing(d, 'limits')),
+  ]
+  if (p) {
+    parts.push(t.dim('  '), t.paint(`${p.ratio.toFixed(1)}×`, color), t.dim(' pace'))
+    if (p.fullInMs !== undefined) parts.push(t.dim(' · '), t.paint(`full in ~${formatSpan(p.fullInMs)}`, '#E5534B', true))
+    else parts.push(t.dim(' → '), t.paint(`${Math.round(p.atReset)}%`, color), t.dim(' at reset'))
   }
-  const cells = Math.max(8, Math.min(30, width - 70))
-  const out: RenderElement[] = []
-  let hasMark = false
-  for (const limit of snap.limits) {
-    const p = pace(limit, now)
-    if (p) hasMark = true
-    const color = paceColor(limit, p)
-    const parts: RenderElement[] = [t.dim(`${(LIMIT_LABELS[limit.kind] ?? limit.kind).padEnd(5)} `)]
-    parts.push(...meterParts(ui, limit, cells, now))
-    parts.push(t.plain('  '), t.live(`${Math.round(limit.percentUsed)}%`.padStart(4), color, d.live.flash.limits > now))
-    if (limit.resetsAt) parts.push(t.dim(`  resets in ${formatSpan(Date.parse(limit.resetsAt) - now)}`))
-    if (p) {
-      parts.push(t.dim('  ·  '), t.paint(`${p.ratio.toFixed(1)}x`, color), t.dim(' pace'))
-      if (p.fullInMs !== undefined) parts.push(t.dim(' · '), t.paint(`full in ~${formatSpan(p.fullInMs)}`, '#E5534B', true))
-      else parts.push(t.dim(' → '), t.paint(`${Math.round(p.atReset)}%`, color), t.dim(' at reset'))
-    }
-    out.push(t.row(`limit-${limit.kind}`, parts))
-  }
-  if (hasMark && out.length < rows) out.push(t.row('limits-legend', [t.dim('┃ marks an even pace through the window')]))
-  return out.slice(0, rows)
+  if (limit.resetsAt) parts.push(t.dim(`  ↻ ${formatSpan(Date.parse(limit.resetsAt) - d.now)}`))
+  return parts
 }
 
-function costRows(ui: Ui, d: Data, width: number, rows: number): RenderElement[] {
-  const { Box, Text } = ui
-  const t = kit(ui)
-  const { snap, ledger, live, today } = d
-  const spend = summarize(ledger, today)
+function limitRows(s: Surface, d: Data, width: number, big: boolean): RenderElement[] {
+  const t = kit(s)
+  if (d.snap.limits.length === 0) return [t.row('limits', [t.dim('No plan limits yet. They show after a response on a subscription.')])]
+  // Both windows share one row when there is room for two.
+  const [a, b] = d.snap.limits
+  if (!big && width >= 170 && a && b && d.snap.limits.length === 2) {
+    return [t.row('limits', [...limitRow(s, d, a, 14), t.dim('     '), ...limitRow(s, d, b, 14)])]
+  }
+  const cols = big ? 40 : width >= 120 ? 20 : 10
+  const rows = d.snap.limits.map(limit => t.row(`limit-${limit.kind}`, limitRow(s, d, limit, cols)))
+  if (big) rows.push(t.row('limits-legend', [t.paint('┃', ACCENT), t.dim(' where an even pace would be by now')]))
+  return rows
+}
 
-  // Bars for the chosen range, two rows tall, with labels under them.
-  const buckets = series(ledger, today, d.view.range)
-  const peak = Math.max(...buckets.map(b => b.usd), 0)
-  const barWidth = d.view.range === 'month' ? 1 : 2
-  const gap = d.view.range === 'month' ? '' : ' '
-  const grid = columns(buckets.map(b => (peak > 0 ? b.usd / peak : 0)), 2)
-  const chartRow = (r: number) => (
-    <Box key={`chart-${r}`}>
-      {buckets.map((b, i) => (
-        <Text color={b.isNow ? ACCENT : BAR}>{(grid[r]?.[i] ?? ' ').repeat(barWidth)}{gap}</Text>
+function rangeButtons(s: Surface, d: Data, actions: Actions): RenderElement {
+  const { Box, Button } = s.ui
+  return (
+    <Box key="ranges" flexShrink={0}>
+      {RANGES.map(({ range, label: text }) => (
+        <Box key={`range-${range}`} marginRight={1}>
+          <Button key={range} label={text} plain dimColor={d.view.range !== range} onPress={() => actions.setView({ range })} />
+        </Box>
       ))}
     </Box>
   )
-  const labels = d.view.range === 'month'
-    ? <Text dimColor>{shortDate(addDays(today, -29)).padEnd(buckets.length - 5)}today</Text>
-    : <Text dimColor>{buckets.map(b => b.label.padEnd(barWidth).slice(0, barWidth) + gap).join('')}</Text>
-  const peakNote = peak > 0 ? t.dim(` peak ${formatUsd(peak)}`) : t.dim(' nothing spent yet')
+}
 
-  const stats: RenderElement[] = [
-    t.row('cost-1', [
-      t.dim('session '), t.live(formatUsd(snap.usd ?? 0), undefined, live.flash.cost > d.now),
-      t.dim('  today '), t.plain(formatUsd(spend.today)),
-      t.dim('  7d '), t.plain(formatUsd(spend.week)),
-    ]),
-    t.row('cost-2', [
-      t.dim(`${spend.monthLabel} `), t.paint(formatUsd(spend.month), ACCENT, true),
-      t.dim('  → '), t.plain(`~${formatUsd(spend.monthForecast)}`), t.dim(' by month end'),
-      spend.lastMonth > 0 ? t.dim(`  last month ${formatUsd(spend.lastMonth)}`) : t.dim(''),
-    ]),
-    t.row('cost-3', [
-      t.dim('avg '), t.plain(formatUsd(spend.perDay)), t.dim('/day'),
-      spend.since ? t.dim(` · tracked here since ${shortDate(spend.since)}`) : t.dim(''),
-    ]),
+function costRows(s: Surface, d: Data, width: number, actions: Actions, big: boolean): RenderElement[] {
+  const { Box, Text } = s.ui
+  const t = kit(s)
+  const { snap, ledger, live, today } = d
+  const spend = summarize(ledger, today)
+  const buckets = series(ledger, today, d.view.range)
+  const shape = d.view.range === 'month' ? { w: 1, gap: 0 } : { w: 2, gap: 1 }
+  // A month of days labels every fifth bar so the numbers don't collide.
+  const labels = buckets.map((b, i) => (d.view.range !== 'month' || i % 5 === 4 ? b.label : ''))
+  const chart = columns(s, `chart-${d.view.range}`, buckets.map(b => b.usd), shape.w, shape.gap, big ? 3 : 1, big && !s.isTerminal ? labels : undefined)
+
+  const totals: RenderElement[] = [
+    t.dim('today '), t.plain(formatUsd(spend.today)),
+    t.dim(' · 7d '), t.plain(formatUsd(spend.week)),
+    t.dim(` · ${spend.monthLabel} `), t.paint(formatUsd(spend.month), ACCENT, true),
+    t.dim(' → '), t.plain(`~${formatUsd(spend.monthForecast)}`),
   ]
+  const more: RenderElement[] = [
+    t.dim('session '), t.live(formatUsd(snap.usd ?? 0), undefined, isFlashing(d, 'cost')),
+    t.dim(' · avg '), t.plain(formatUsd(spend.perDay)), t.dim('/day'),
+  ]
+  if (spend.lastMonth > 0) more.push(t.dim(` · ${monthName(addDays(`${today.slice(0, 7)}-01`, -1))} ${formatUsd(spend.lastMonth)}`))
+  if (spend.since) more.push(t.dim(` · since ${shortDate(spend.since)}`))
 
+  if (!big) {
+    if (width >= 160) return [t.row('cost', [rangeButtons(s, d, actions), chart, t.gap(2), ...totals, t.dim(' · '), ...more])]
+    // Narrower: the chart leads, the range toggles move down a row.
+    return [t.row('cost-1', [chart, t.gap(2), ...totals]), t.row('cost-2', [rangeButtons(s, d, actions), t.gap(1), ...(width >= 100 ? more : more.slice(0, 2))])]
+  }
+
+  // The pane: a taller chart with its labels, then the numbers.
+  const labelRow = d.view.range === 'month'
+    ? <Text dimColor>{shortDate(addDays(today, -29)).padEnd(buckets.length - 5)}today</Text>
+    : <Text dimColor>{buckets.map(b => b.label.padEnd(shape.w).slice(0, shape.w) + ' '.repeat(shape.gap)).join('')}</Text>
   const tokens = live.tokens
   const counted = tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite
-  const tokenRow = counted > 0
-    ? t.row('cost-tokens', [
-        t.dim('tokens in '), t.plain(formatTokens(tokens.input + tokens.cacheRead + tokens.cacheWrite)),
-        t.dim(' · out '), t.plain(formatTokens(tokens.output)),
-        t.dim(' · cache hit '), t.plain(`${cacheHit({ input_tokens: tokens.input, cache_read_input_tokens: tokens.cacheRead, cache_creation_input_tokens: tokens.cacheWrite }) ?? 0}%`),
-        tokens.subagent > 0 ? t.dim(` · subagents ${Math.round((tokens.subagent / counted) * 100)}%`) : t.dim(''),
-      ])
-    : null
-
-  const chartWidth = buckets.length * (barWidth + gap.length)
-  if (width >= chartWidth + 50) {
-    // Chart left, totals right.
-    const out: RenderElement[] = [
-      <Box key="cost-side">
-        <Box flexDirection="column" marginRight={3}>
-          {chartRow(0)}
-          {chartRow(1)}
-          <Box>{labels}</Box>
-        </Box>
-        <Box flexDirection="column">{rows >= 3 ? stats : stats.slice(0, rows)}</Box>
-      </Box>,
-    ]
-    if (tokenRow && rows >= 4) out.push(tokenRow)
-    return out
+  const out: RenderElement[] = [
+    t.row('cost-range', [rangeButtons(s, d, actions)]),
+    <Box key="cost-chart" flexDirection="column">{chart}{s.isTerminal ? labelRow : null}</Box>,
+    t.row('cost-totals', totals),
+    t.row('cost-more', more),
+  ]
+  if (counted > 0) {
+    out.push(t.row('cost-tokens', [
+      t.dim('tokens in '), t.plain(formatTokens(tokens.input + tokens.cacheRead + tokens.cacheWrite)),
+      t.dim(' · out '), t.plain(formatTokens(tokens.output)),
+      t.dim(' · cache hit '), t.plain(`${cacheHit({ input_tokens: tokens.input, cache_read_input_tokens: tokens.cacheRead, cache_creation_input_tokens: tokens.cacheWrite }) ?? 0}%`),
+      tokens.subagent > 0 ? t.dim(` · subagents ${Math.round((tokens.subagent / counted) * 100)}%`) : t.dim(''),
+    ]))
   }
-  // Narrow: totals first, the chart if it fits.
-  const out: RenderElement[] = [...stats.slice(0, 2)]
-  if (rows >= 5) out.push(<Box key="cost-chart">{chartRow(0)}</Box>, <Box key="cost-chart-2">{chartRow(1)}{peakNote}</Box>, <Box key="cost-labels">{labels}</Box>)
-  return out.slice(0, rows)
+  return out
 }
 
-function turnRows(ui: Ui, d: Data, width: number, rows: number): RenderElement[] {
-  const t = kit(ui)
+function turnRows(s: Surface, d: Data, width: number, big: boolean): RenderElement[] {
+  const t = kit(s)
   const { turns, live } = d
-  const out: RenderElement[] = []
-  const shown = turns.slice(-Math.max(1, rows - 1)).reverse()
-  if (shown.length === 0) out.push(t.row('turns-none', [t.dim('Turns show here as they finish.')]))
-  const longest = Math.max(...shown.map(turn => turn.ms), 1)
-  const cells = width >= 100 ? 10 : 6
-  for (const [i, turn] of shown.entries()) {
-    const previous = turns[turns.length - 1 - i - 1]
+  if (turns.length === 0) return [t.row('turns', [t.dim('Turns show here as they finish.')])]
+  const last = turns.at(-1) as Turn
+  const mix = Object.entries(live.tools).sort((a, b) => b[1] - a[1]).slice(0, big || width >= 120 ? 5 : 3)
+  const mixParts: RenderElement[] = []
+  for (const [i, [tool, count]] of mix.entries()) mixParts.push(t.dim(i ? ' · ' : ''), t.plain(shorten(tool, 12)), t.dim(` ${count}`))
+
+  const head: RenderElement[] = [
+    timeline(s, 'timeline', turns, big ? 40 : width >= 120 ? 24 : 12), t.gap(2),
+    t.dim(`${turns.length} turn${turns.length === 1 ? '' : 's'} · last `), t.plain(formatDuration(last.ms)),
+    t.dim(` · ${last.tools} tool${last.tools === 1 ? '' : 's'}`),
+  ]
+  if (last.usd !== undefined) head.push(t.dim(' · '), t.plain(formatUsd(last.usd)))
+  if (!big) return width >= 150 ? [t.row('turns', [...head, t.dim('   '), ...mixParts])] : [t.row('turns-1', head), t.row('turns-2', mixParts)]
+
+  // The pane lists recent turns with fixed columns.
+  const rows: RenderElement[] = [t.row('turns-head', head)]
+  for (const [i, turn] of turns.slice(-8).reverse().entries()) {
+    const previous = turns[turns.length - 2 - i]
     const grew = previous ? turn.tokens - previous.tokens : 0
-    const filled = Math.max(1, Math.round((turn.ms / longest) * cells))
-    const parts: RenderElement[] = [
+    rows.push(t.row(`turn-${turn.n}`, [
       t.dim(`#${String(turn.n).padEnd(4)}`),
       t.plain(formatDuration(turn.ms).padStart(6)),
-      t.plain(' '),
-      t.paint('━'.repeat(filled), turn.isAborted ? '#E8964A' : BAR),
-      t.dim('─'.repeat(cells - filled)),
       t.dim(`  ${String(turn.tools).padStart(2)} tool${turn.tools === 1 ? ' ' : 's'}`),
-      // Fixed-width columns so the rows line up.
       t.dim(`  ${grew === 0 ? '' : `${grew > 0 ? '+' : '-'}${formatTokens(Math.abs(grew))} ctx`}`.padEnd(12)),
-    ]
-    if (turn.usd !== undefined) parts.push(t.plain(formatUsd(turn.usd).padStart(6)))
-    if (turn.cacheHit !== undefined && width >= 90) parts.push(t.dim(`  cache ${turn.cacheHit}%`))
-    if (turn.isAborted) parts.push(t.paint('  interrupted', '#E8964A'))
-    out.push(t.row(`turn-${turn.n}`, parts))
+      t.plain(turn.usd === undefined ? '' : formatUsd(turn.usd).padStart(6)),
+      t.dim(turn.cacheHit === undefined ? '' : `  cache ${turn.cacheHit}%`),
+      turn.isAborted ? t.paint('  interrupted', WARN) : t.dim(''),
+    ]))
   }
-
-  const mix = Object.entries(live.tools).sort((a, b) => b[1] - a[1])
-  if (mix.length > 0) {
-    const parts: RenderElement[] = [t.dim('tools ')]
-    for (const [i, [tool, count]] of mix.slice(0, width >= 100 ? 8 : 4).entries()) {
-      if (i > 0) parts.push(t.dim(' · '))
-      parts.push(t.plain(shorten(tool, 14)), t.dim(` ${count}`))
-    }
-    out.push(t.row('turns-tools', parts))
-  }
-  return out.slice(0, rows)
+  rows.push(t.row('turns-tools', [t.dim('tools '), ...mixParts]))
+  return rows
 }
 
-// The dashboard: every section at once, for the side pane.
-export function dashboard(ui: Ui, d: Data, width: number, actions: Actions): RenderElement {
-  const { Box, Text } = ui
-  const heading = (key: string, label: string, extra?: RenderElement | null) => (
+// The dashboard pane: the glance row, then every section, larger.
+export function dashboard(s: Surface, d: Data, width: number, actions: Actions): RenderElement {
+  const { Box, Text } = s.ui
+  const heading = (key: string, text: string) => (
     <Box key={key} marginTop={1}>
-      <Text color={ACCENT} bold>{label}</Text>
-      <Box flexGrow={1} />
-      {extra ?? null}
+      <Text color={ACCENT} bold>{text}</Text>
     </Box>
   )
   return (
     <Box flexDirection="column">
-      {glance(ui, d, width, actions, true)}
+      {glance(s, d, width, actions, true)}
       {heading('h-context', 'Context')}
-      {body(ui, d, 'context', width, 3)}
+      {section(s, d, 'context', width, actions, true)}
       {heading('h-limits', 'Plan limits')}
-      {body(ui, d, 'limits', width, 4)}
-      {heading('h-cost', 'Spend', rangeButtons(ui, d, actions))}
-      {body(ui, d, 'cost', width, 6)}
-      {heading('h-turns', 'Recent turns')}
-      {body(ui, d, 'turns', width, 9)}
+      {section(s, d, 'limits', width, actions, true)}
+      {heading('h-cost', 'Spend')}
+      {section(s, d, 'cost', width, actions, true)}
+      {heading('h-turns', 'Turns')}
+      {section(s, d, 'turns', width, actions, true)}
     </Box>
   )
 }

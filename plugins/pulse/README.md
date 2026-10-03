@@ -1,28 +1,12 @@
 # Pulse
 
-A live usage cockpit above the Claude Code prompt. One quiet line tells you how full the context is, how fast you are burning your plan limits, and what you have spent today and this month. Press `more` and it opens into tabs with the detail behind each number.
+A live usage cockpit above the Claude Code prompt, one row tall. It shows how full the context is, how fast you're burning your plan limits and what you've spent. Press any label to open a one-row drawer with the detail behind it.
 
 ```
-⡠⠊⠑⢄⣀⣀ 12s · 3 tools  │  ctx ▂▃▃▄ 42%  │  5h ━━─┃── 23% ↻2h00m  │  7d ━━┃━━─ 81%  │  $2.07 · today $4.47 · Oct $24.37   ▾ more
+⡠⠊⠑⢄⣀⣀ 12s · 3 tools   ctx ▂▃▄▅ 46%   5h ━━─┼── 23% ↻2h00m   7d ━━━╋━─ 81%   cost $4.30 · Oct $41.10   ▾
 ```
 
-Expanded, on the Limits tab:
-
-```
-1: Context  2: Limits  3: Cost  4: Turns                                       p: dashboard
-5h    ━━━━━━━───────────┃───────────   23%  resets in 2h00m  ·  0.4x pace → 38% at reset
-7d    ━━━━━━━━━━━━┃━━━━━━━━━━━──────   81%  resets in 4d 0h  ·  1.9x pace · full in ~16h53m
-┃ marks an even pace through the window
-```
-
-On the Cost tab:
-
-```
-       ██       ▃▃     session $2.07  today $4.47  7d $24.37
-    ▂▂ ██    ▅▅ ██ ██  Oct $24.37  → ~$50.36 by month end  last month $40.00
-Fr Sa Su Mo Tu We Th   avg $3.48/day · tracked here since Sep 2
-tokens in 1.2M · out 84k · cache hit 91% · subagents 22%
-```
+The gauges are drawn, not typed. In the terminal they're colored cell grids: a heartbeat whose bright head trails off as it scrolls, meters that run from green to red, and bar charts. In the desktop app and VS Code they're small animated SVGs: a scrolling pulse with a ripple, a context ring, capsule meters that slide to a new value, and charts that grow in.
 
 ## Install
 
@@ -37,41 +21,45 @@ Pulse replaces buddy. If you had `buddy@samarth` installed, Claude Code (v2.1.19
 
 ## What it shows
 
-### The glance row
+### The row
 
 | Part | What |
 | --- | --- |
-| Heartbeat | Scrolls while a turn runs, flat when idle. Beside it, the turn's clock and tool count |
-| `ctx` | A sparkline with one bar per turn, then the context fill now |
-| `5h`, `7d` | Each plan limit as a meter with `┃` where an even pace would be by now, the percent used, and the time until the 5-hour window resets. The color follows where the window is heading, not only where it is |
-| Money | This session, today, and this month across every session on this machine |
+| Heartbeat | Scrolls while a turn runs, with the turn's clock and tool count; a flat line when idle |
+| `ctx` | A sparkline of context per turn (terminal) or a ring (desktop), then the fill now |
+| `5h`, `7d` | Each plan limit as a heat meter with a tick where an even pace would be by now, the percent used, and the 5-hour reset countdown. The color follows where the window is heading |
+| `cost` | This session, and this month across every session on this machine |
 
-The row drops the meters below 120 columns, and keeps only the numbers below 84. Below 90 columns the Cost tab's range buttons move from the tab strip to the top of the tab.
+Below 120 columns the row drops the reset time and the month; below 84 it keeps only the numbers.
 
-### The tabs
+### Drawers
 
-| Tab | Shows |
+Press a label to open its drawer under the row; press it again, or `▴`, to close it. A drawer is one row, or two on narrower screens.
+
+| Label | Drawer |
 | --- | --- |
-| Context | Fill, tokens of the window, the last turn's jump, average growth per turn, turns left at that rate, the last turn's cache hit, the model |
-| Limits | A wide meter per window, reset time, pace (`1.9x` is burning almost twice as fast as even), and where it lands at reset or when it fills |
-| Cost | Bars over 7 days, 30 days or 12 months; session, today, 7 days, this month, a month-end forecast, last month, average per day; the session's tokens in and out, cache hit and the subagents' share |
-| Turns | Recent turns: duration as a bar, tools, context growth, cost and cache hit; then the session's tool mix |
+| `idle` | Turns as a timeline, each as wide as it took, the last turn's time, tools and cost, and the tool mix |
+| `ctx` | Context per turn as an area chart, tokens of the window, the last turn's jump, growth per turn, turns left, cache hit, the model |
+| `5h`, `7d` | Wide meters, pace (`1.9×` burns almost twice as fast as even), where each window lands at reset or when it fills, and when it resets |
+| `cost` | Spend as bars over 7 days, 30 days or 12 months, with today, 7 days, this month and a month-end forecast; then this session, the daily average and last month |
 
-A number that just changed glows for a moment. When a plan limit crosses 80% or 95%, a toast says so once.
+`⤢` opens every drawer at once, larger, in a pane (`/pulse` does too).
+
+A number that just changed glows for a moment, and its meter slides from the old value on desktop. When a plan limit crosses 80% or 95%, a toast says so once.
 
 ## Controls
 
 | Control | Does |
 | --- | --- |
-| `▾ more` / `▴ less` (`e`) | Expand or collapse the band |
-| `Context`, `Limits`, `Cost`, `Turns` (`1` to `4`) | Pick a tab |
-| `7d`, `30d`, `12mo` (`w`, `m`, `y`) | Pick the Cost chart's range |
-| `dashboard` (`p`) or `/pulse` | Open every section in a pane |
-| `/pulse glance`, `/pulse detail` | Set the band's size |
-| `/pulse context` (or `limits`, `cost`, `turns`) | Expand on that tab |
-| `/pulse hide`, `/pulse show` | Hide or bring back the band. On desktop the expanded band also has `hide`; the terminal draws its own `[-]` |
+| A label (`idle`, `ctx`, `5h`, `7d`, `cost`) | Open or close its drawer |
+| `▾` / `▴` | Open the last drawer, or close it |
+| `7d`, `30d`, `12mo` | Pick the cost chart's range |
+| `⤢` or `/pulse` | Open the dashboard pane |
+| `/pulse context` (or `limits`, `cost`, `turns`) | Open that drawer |
+| `/pulse glance`, `/pulse detail` | Close or open the drawer |
+| `/pulse hide`, `/pulse show` | Hide or bring back the row. On desktop an open drawer also has `hide`; the terminal draws its own `[-]` |
 
-Hotkeys work while the band has focus (ctrl+x tab, or a click). The mode, tab and range are remembered across sessions.
+In the terminal, the band takes the keyboard after ctrl+x tab or a click; Tab walks the labels and Enter presses one. The open drawer and the chart range are remembered across sessions.
 
 ## Where the numbers come from
 
@@ -90,6 +78,6 @@ claude plugin test plugins/pulse
 claude --plugin-dir plugins/pulse     # try it, hot-reloads on save
 ```
 
-`hooks/calc.ts` holds the pure math (pace, ledger sums, charts), `hooks/draw.tsx` the rows, and `hooks/register.tsx` the events and state.
+`hooks/calc.ts` holds the pure math (pace, ledger sums, colors), `hooks/widgets.tsx` the gauges and charts for each surface, `hooks/draw.tsx` the row, drawers and pane, and `hooks/register.tsx` the events and state.
 
 See [CHANGELOG.md](CHANGELOG.md) for releases.

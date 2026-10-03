@@ -49,6 +49,22 @@ export function levelColor(percent: number): string {
   return '#7BC96F'
 }
 
+// A smooth heat scale for gradients: green, yellow at 50, orange at 75, red from 90.
+const HEAT: [number, number][] = [[0, 0x5fb87a], [50, 0xd6c35a], [75, 0xe8964a], [90, 0xe5534b], [100, 0xe5534b]]
+export function heat(percent: number): string {
+  const p = clamp(percent)
+  for (let i = 1; i < HEAT.length; i++) {
+    const [b, cb] = HEAT[i] ?? [100, 0]
+    const [a, ca] = HEAT[i - 1] ?? [0, 0]
+    if (p <= b) {
+      const t = b === a ? 0 : (p - a) / (b - a)
+      const ch = (shift: number) => Math.round(((ca >> shift) & 255) * (1 - t) + ((cb >> shift) & 255) * t)
+      return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`
+    }
+  }
+  return '#e5534b'
+}
+
 const BARS = ' ▁▂▃▄▅▆▇█'
 
 // One bar per value, 0-100.

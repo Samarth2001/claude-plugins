@@ -35,6 +35,8 @@ export type Live = {
   tokens: Tokens
   // Until when each unit glows after it changed.
   flash: { context: number; limits: number; cost: number }
+  // The readings before the last change, so a gauge can slide from them.
+  previous: { percent?: number; limits: Record<string, number> }
 }
 
 // Spend per local day (YYYY-MM-DD) across every session this machine ran.

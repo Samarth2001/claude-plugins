@@ -3,7 +3,7 @@ import type { EngineInterface, Register, SessionUsage } from 'claude-code'
 
 import type { Ledger, Limit, Live, Snapshot, Tab, Turn, View } from '../types'
 import { LIMIT_LABELS, addDays, cacheHit, dayKey, formatSpan, toolGroup } from './calc'
-import { body, dashboard, glance, tabBar } from './draw'
+import { dashboard, drawer, glance } from './draw'
 import type { Actions, Data } from './draw'
 
 const IDLE: Live = {
@@ -14,6 +14,7 @@ const IDLE: Live = {
   tools: {},
   tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, subagent: 0 },
   flash: { context: 0, limits: 0, cost: 0 },
+  previous: { limits: {} },
 }
 const DEFAULT_VIEW: View = { mode: 'glance', tab: 'limits', range: 'week' }
 
@@ -203,9 +204,14 @@ export const register: Register = on => {
 
   on('session.measure', async ($, e, next) => {
     const now = await $.clock.now()
+    const old = await read($, snapshot)
     await update($, snapshot, () => toSnapshot(e))
     await update($, live, l => ({
       ...l,
+      previous: {
+        percent: e.changed.includes('context') ? old?.percent : l.previous.percent,
+        limits: e.changed.includes('rateLimits') && old ? Object.fromEntries(old.limits.map(x => [x.kind, x.percentUsed])) : l.previous.limits,
+      },
       flash: {
         context: e.changed.includes('context') ? now + FLASH_MS : l.flash.context,
         limits: e.changed.includes('rateLimits') ? now + FLASH_MS : l.flash.limits,
@@ -284,30 +290,26 @@ export const register: Register = on => {
     const v = await read($, view)
     if (e.props.hasSurvey || snap === null || v.mode === 'hidden' || e.props.maxRows < 1) return next(e)
 
-    const ui = $.ui.resolve(e)
-    const { Box } = ui
+    const s = { ui: $.ui.resolve(e), isTerminal: e.surface === 'terminal' }
+    const { Box } = s.ui
     const d = await data($, snap)
     d.live = { ...d.live, isWorking: d.live.isWorking || e.props.isWorking }
     const width = e.props.bodyColumns
     const act = actions($)
-    const isTerminal = e.surface === 'terminal'
-
-    if (v.mode === 'glance' || e.props.maxRows < 3) {
-      return <Box flexDirection="column" marginRight={isTerminal ? 4 : 0}>{glance(ui, d, width, act)}</Box>
-    }
+    const rows = v.mode === 'detail' && e.props.maxRows >= 2 ? drawer(s, d, width, act).slice(0, e.props.maxRows - 1) : []
+    // The terminal draws its own [-] in the band's top corner.
     return (
       <Box flexDirection="column">
-        <Box marginRight={isTerminal ? 4 : 0}>{glance(ui, d, width, act)}</Box>
-        {tabBar(ui, d, width, act, isTerminal)}
-        {body(ui, d, v.tab, width, Math.min(5, e.props.maxRows - 2), act)}
+        <Box marginRight={s.isTerminal ? 4 : 0}>{glance(s, d, width, act)}</Box>
+        {rows}
       </Box>
     )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const ui = $.ui.resolve(e)
+    const s = { ui: $.ui.resolve(e), isTerminal: e.surface === 'terminal' }
     const snap = (await read($, snapshot)) ?? { window: 0, limits: [] }
     const d = await data($, snap)
-    return dashboard(ui, d, e.props.bodyColumns, actions($))
+    return dashboard(s, d, e.props.bodyColumns, actions($))
   })
 }

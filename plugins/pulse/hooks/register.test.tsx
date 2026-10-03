@@ -75,55 +75,54 @@ const text = async (ui: { findAll: (q: { type: 'Text' }) => Promise<Found[]> }) 
 const measure = (w: World, changed: ('context' | 'rateLimits' | 'cost')[]) => ({ ...usage(w), changed })
 
 for (const surface of SURFACES) {
-  test(`${surface}: the glance row carries context, limits and money`, async ($, on) => {
+  test(`${surface}: one slim row carries context, limits and money`, async ($, on) => {
     engine(on, world())
     await $.session.start(start)
     const ui = await $.ui.mount({ ...BAND(false), surface })
     const line = await text(ui)
-    expect(line).toContain('idle')
-    expect(line).toContain('ctx')
     expect(line).toContain('42%')
-    expect(line).toContain('5h')
     expect(line).toContain('23%')
     expect(line).toContain('↻2h00m')
-    expect(line).toContain('7d')
     expect(line).toContain('81%')
     expect(line).toContain('$2.07')
-    expect(line).toContain('today')
     expect(line).toContain('Oct')
-    expect(await ui.find({ key: 'tabs' })).toBeUndefined()
+    for (const key of ['open-turns-idle', 'open-context-ctx', 'open-limits-5h', 'open-limits-7d', 'open-cost-cost']) {
+      expect(await ui.find({ key })).toBeDefined()
+    }
+    expect(await ui.find({ key: 'drawer-0' })).toBeUndefined()
+    // Gauges are drawn, not typed: cells in the terminal, an animated Svg elsewhere.
+    const gauge = (await ui.find({ type: surface === 'terminal' ? 'Raster' : 'Svg' })) as Found | undefined
+    expect(gauge).toBeDefined()
+    if (surface !== 'terminal') expect(String(gauge?.props?.source)).toContain('color-scheme:light dark')
   })
 
-  test(`${surface}: more opens tabs, and each tab shows its detail`, async ($, on) => {
+  test(`${surface}: a label opens its drawer, and again closes it`, async ($, on) => {
     const store = new Map<string, unknown>()
     engine(on, world(), store)
     await $.session.start(start)
     const ui = await $.ui.mount({ ...BAND(false), surface })
-    await ui.press({ key: 'expand' })
-    expect(await ui.find({ key: 'tabs' })).toBeDefined()
-    expect(store.get('view')).toMatchObject({ mode: 'detail' }) // remembered
-
-    expect(await ui.find({ key: 'limits' })).toBeUndefined() // the open tab is a label, not a button
+    await ui.press({ key: 'open-limits-5h' })
+    expect(store.get('view')).toMatchObject({ mode: 'detail', tab: 'limits' }) // remembered
     const limits = await text(ui)
-    expect(limits).toContain('resets in 2h00m')
-    expect(limits).toContain('resets in 4d 0h')
-    expect(limits).toContain('0.4x')
+    expect(limits).toContain('↻ 2h00m')
+    expect(limits).toContain('↻ 4d 0h')
+    expect(limits).toContain('0.4×')
     expect(limits).toContain('38%') // 23% at 3h of 5h carries to 38%
     expect(limits).toContain('at reset')
-    expect(limits).toContain('even pace')
+    expect(limits).toContain('full in')
 
-    await ui.press({ key: 'cost' })
+    await ui.press({ key: 'open-cost-cost' })
     const cost = await text(ui)
+    expect(cost).toContain('today')
     expect(cost).toContain('session')
-    expect(cost).toContain('by month end')
     await ui.press({ key: 'year' })
     expect(store.get('view')).toMatchObject({ tab: 'cost', range: 'year' })
 
-    await ui.press({ key: 'context' })
+    await ui.press({ key: 'open-context-ctx' })
     expect(await text(ui)).toContain('420k of 1M tokens')
 
-    await ui.press({ key: 'expand' })
-    expect(await ui.find({ key: 'tabs' })).toBeUndefined()
+    await ui.press({ key: 'open-context-ctx' })
+    expect(await ui.find({ key: 'drawer-0' })).toBeUndefined()
   })
 }
 
@@ -143,6 +142,7 @@ test('spend lands in today, and other sessions count toward the month', async ($
   expect(store.get(`spent:${today}:session-a`)).toBe(1.5)
   expect(store.get('seen:session-a')).toMatchObject({ usd: 1.5 })
 
+  await $.command.run({ command: 'pulse', args: 'cost' } as never)
   const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
   const line = await text(ui)
   expect(line).toContain('$1.50')
@@ -203,12 +203,11 @@ test('the heartbeat moves while a turn runs and counts tools', async ($, on) => 
   await $.turn.start({ text: 'go', turnId: 't' })
   await $.tool.call({ tool: 'Read', file_path: '/a.ts' } as never)
   const ui = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
-  const before = await text(ui)
-  expect(before).toContain('1 tool')
+  expect(await text(ui)).toContain('1 tool')
+  const trace = async () => ((await ui.find({ key: 'wave' })) as Found | undefined)?.props?.cells
+  const before = await trace()
   await clock.advance(420)
-  const after = await text(ui)
-  expect(after).not.toBe(before)
-  expect(after).toContain('0s')
+  expect(await trace()).not.toBe(before)
 })
 
 test('the turns tab lists finished turns and the tool mix', async ($, on) => {
@@ -226,12 +225,17 @@ test('the turns tab lists finished turns and the tool mix', async ($, on) => {
   await $.command.run({ command: 'pulse', args: 'turns' } as never)
   const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
   const line = await text(ui)
-  expect(line).toContain('#2')
-  expect(line).toContain('1m04s')
-  expect(line).toContain('+50k ctx')
-  expect(line).toContain('cache 90%')
+  expect(line).toContain('2 turns')
+  expect(line).toContain('last 1m04s')
   expect(line).toContain('Bash 2')
   expect(line).toContain('MCP 2')
+  expect(await ui.find({ key: 'timeline' })).toBeDefined()
+
+  const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const all = await text(pane)
+  expect(all).toContain('#2')
+  expect(all).toContain('+50k ctx')
+  expect(all).toContain('cache 90%')
 })
 
 test('/pulse hide and show, and /pulse opens the dashboard', async ($, on) => {
@@ -240,18 +244,18 @@ test('/pulse hide and show, and /pulse opens the dashboard', async ($, on) => {
   const run = async (args: string) => ((await $.command.run({ command: 'pulse', args } as never)) as { text?: string }).text
   expect(await run('hide')).toContain('hidden')
   const hidden = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
-  expect(await text(hidden)).not.toContain('ctx')
+  expect(await hidden.find({ key: 'open-context-ctx' })).toBeUndefined()
   await hidden.unmount()
   await run('show')
   const shown = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
-  expect(await text(shown)).toContain('ctx')
+  expect(await shown.find({ key: 'open-context-ctx' })).toBeDefined()
 
   expect(await run('')).toContain('dashboard opened')
   const pane = await $.ui.mount({ ...PANE, surface: 'terminal' })
   const all = await text(pane)
   expect(all).toContain('Plan limits')
   expect(all).toContain('Spend')
-  expect(all).toContain('Recent turns')
+  expect(all).toContain('Turns')
 })
 
 test('a narrow band keeps only the numbers', async ($, on) => {
@@ -261,5 +265,6 @@ test('a narrow band keeps only the numbers', async ($, on) => {
   const line = await text(ui)
   expect(line).toContain('42%')
   expect(line).toContain('$2.07')
-  expect(line).not.toContain('today')
+  expect(line).not.toContain('Oct')
+  expect(await ui.find({ key: 'bar-five_hour' })).toBeUndefined() // numbers only
 })
