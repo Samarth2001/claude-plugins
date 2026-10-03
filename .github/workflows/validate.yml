@@ -21,13 +21,13 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
       - name: Validate marketplace
-        run: claude plugin validate .
+        run: claude plugin validate --strict .
       - name: Validate and test each plugin
         run: |
           set -e
           for dir in plugins/*/; do
             echo "::group::$dir"
-            claude plugin validate "$dir"
+            claude plugin validate --strict "$dir"
             if find "$dir" -name '*.test.ts' -o -name '*.test.tsx' | grep -q .; then
               claude plugin test "$dir"
             fi

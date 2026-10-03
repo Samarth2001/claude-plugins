@@ -33,8 +33,8 @@ If you edit the marketplace by hand, run `node --experimental-strip-types script
 ## Try it
 
 ```bash
-claude plugin validate .                     # the marketplace
-claude plugin validate plugins/<name>        # the plugin
+claude plugin validate --strict .            # the marketplace
+claude plugin validate --strict plugins/<name> # the plugin
 claude plugin test plugins/<name>            # its tests (mods)
 claude --plugin-dir plugins/<name>           # a session with it loaded; mods hot-reload on save
 ```
@@ -77,4 +77,4 @@ Never change a plugin's `name`, because it is the install id. Change `displayNam
 
 ## Commits
 
-Commit as `Samarth Rayar <samarthsr2001@gmail.com>`. Make one change per commit. Start the subject with the plugin name for plugin changes (`buddy: ...`) and describe the area for repo-wide changes (`Release workflow: ...`).
+Commit as `Samarth Rayar <samarthsr2001@gmail.com>`. Make one change per commit. Start the subject with the plugin name for plugin changes (`<name>: ...`) and describe the area for repo-wide changes (`Release workflow: ...`).

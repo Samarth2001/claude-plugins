@@ -2,3 +2,8 @@
 plugins/*/.claude-plugin/types/
 node_modules/
 .DS_Store
+
+# Personal, machine-local Claude Code files: never published
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/**/*.local.*
