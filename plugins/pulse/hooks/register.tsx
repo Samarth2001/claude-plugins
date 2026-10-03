@@ -298,8 +298,8 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Box marginRight={isTerminal ? 4 : 0}>{glance(ui, d, width, act)}</Box>
-        {tabBar(ui, d, act, isTerminal)}
-        {body(ui, d, v.tab, width, Math.min(5, e.props.maxRows - 2))}
+        {tabBar(ui, d, width, act, isTerminal)}
+        {body(ui, d, v.tab, width, Math.min(5, e.props.maxRows - 2), act)}
       </Box>
     )
   })

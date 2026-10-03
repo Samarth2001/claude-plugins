@@ -101,7 +101,7 @@ export function glance(ui: Ui, d: Data, width: number, actions: Actions, isPane 
   const { snap, live, now } = d
   const isWide = width >= 120
   const isMid = width >= 84
-  const sep = t.dim('  │  ')
+  const sep = t.dim(isWide ? '  │  ' : isMid ? ' │ ' : ' · ')
   const parts: RenderElement[] = []
 
   // The heartbeat, then the turn's clock while working.
@@ -110,7 +110,7 @@ export function glance(ui: Ui, d: Data, width: number, actions: Actions, isPane 
   if (live.isWorking) {
     parts.push(t.plain(` ${formatDuration(now - live.turnStartedAt)}`))
     if (isWide && live.toolsThisTurn > 0) parts.push(t.dim(` · ${live.toolsThisTurn} tool${live.toolsThisTurn === 1 ? '' : 's'}`))
-  } else {
+  } else if (isWide) {
     parts.push(t.dim(' idle'))
   }
 
@@ -152,29 +152,41 @@ export function glance(ui: Ui, d: Data, width: number, actions: Actions, isPane 
     <Box key="glance">
       <Box flexGrow={1} overflow="hidden">{parts}</Box>
       {isPane ? null : (
-        <Button key="expand" label={isDetail ? '▴ less' : '▾ more'} hotkey="e" plain dimColor
-          onPress={() => actions.setView({ mode: isDetail ? 'glance' : 'detail' })} />
+        <Box marginLeft={2}>
+          <Button key="expand" label={isDetail ? '▴ less' : '▾ more'} hotkey="e" plain dimColor
+            onPress={() => actions.setView({ mode: isDetail ? 'glance' : 'detail' })} />
+        </Box>
       )}
     </Box>
   )
 }
 
 // The tab strip under the glance row: tabs left, range and pane right.
-export function tabBar(ui: Ui, d: Data, actions: Actions, isTerminal: boolean): RenderElement {
+// Ranges ride in the tab strip when it has room, else atop the Cost tab.
+const RANGES_IN_STRIP = 90
+
+// The tab strip under the glance row: tabs left, range and pane right.
+export function tabBar(ui: Ui, d: Data, width: number, actions: Actions, isTerminal: boolean): RenderElement {
   const { Box, Button, Text } = ui
   const tabs = TABS.map(({ tab, label, hotkey }) => (
     <Box key={`tab-${tab}`} marginRight={2}>
-      <Text color={d.view.tab === tab ? ACCENT : undefined}>{d.view.tab === tab ? '▸' : ' '}</Text>
-      <Button key={tab} label={label} hotkey={hotkey} plain dimColor={d.view.tab !== tab} onPress={() => actions.setView({ tab })} />
+      {d.view.tab === tab ? (
+        <Box>
+          <Text color={ACCENT}>{hotkey}: </Text>
+          <Text color={ACCENT} bold underline>{label}</Text>
+        </Box>
+      ) : (
+        <Button key={tab} label={label} hotkey={hotkey} plain dimColor onPress={() => actions.setView({ tab })} />
+      )}
     </Box>
   ))
-  const ranges = d.view.tab === 'cost' ? rangeButtons(ui, d, actions) : null
+  const ranges = d.view.tab === 'cost' && width >= RANGES_IN_STRIP ? rangeButtons(ui, d, actions) : null
   return (
     <Box key="tabs">
       {tabs}
       <Box flexGrow={1} />
       {ranges}
-      <Button key="pane" label="dashboard" hotkey="p" plain dimColor onPress={actions.openPane} />
+      <Button key="pane" label={width >= 90 ? 'dashboard' : 'pane'} hotkey="p" plain dimColor onPress={actions.openPane} />
       {isTerminal ? <Box marginRight={4} /> : (
         <Box marginLeft={2}>
           <Button key="hide" label="hide" plain dimColor onPress={() => actions.setView({ mode: 'hidden' })} />
@@ -197,7 +209,7 @@ function rangeButtons(ui: Ui, d: Data, actions: Actions): RenderElement {
   )
 }
 
-export function body(ui: Ui, d: Data, tab: Tab, width: number, rows: number): RenderElement[] {
+export function body(ui: Ui, d: Data, tab: Tab, width: number, rows: number, actions?: Actions): RenderElement[] {
   if (rows <= 0) return []
   switch (tab) {
     case 'context':
@@ -205,6 +217,7 @@ export function body(ui: Ui, d: Data, tab: Tab, width: number, rows: number): Re
     case 'limits':
       return limitRows(ui, d, width, rows)
     case 'cost':
+      if (actions && width < RANGES_IN_STRIP) return [rangeButtons(ui, d, actions), ...costRows(ui, d, width, rows - 1)]
       return costRows(ui, d, width, rows)
     case 'turns':
       return turnRows(ui, d, width, rows)
@@ -316,7 +329,7 @@ function costRows(ui: Ui, d: Data, width: number, rows: number): RenderElement[]
     ]),
     t.row('cost-3', [
       t.dim('avg '), t.plain(formatUsd(spend.perDay)), t.dim('/day'),
-      spend.since ? t.dim(`  · tracked here since ${shortDate(spend.since)}`) : t.dim(''),
+      spend.since ? t.dim(` · tracked here since ${shortDate(spend.since)}`) : t.dim(''),
     ]),
   ]
 
@@ -369,12 +382,13 @@ function turnRows(ui: Ui, d: Data, width: number, rows: number): RenderElement[]
       t.dim(`#${String(turn.n).padEnd(4)}`),
       t.plain(formatDuration(turn.ms).padStart(6)),
       t.plain(' '),
-      t.paint('▇'.repeat(filled), turn.isAborted ? '#E8964A' : BAR),
-      t.dim('·'.repeat(cells - filled)),
+      t.paint('━'.repeat(filled), turn.isAborted ? '#E8964A' : BAR),
+      t.dim('─'.repeat(cells - filled)),
       t.dim(`  ${String(turn.tools).padStart(2)} tool${turn.tools === 1 ? ' ' : 's'}`),
+      // Fixed-width columns so the rows line up.
+      t.dim(`  ${grew === 0 ? '' : `${grew > 0 ? '+' : '-'}${formatTokens(Math.abs(grew))} ctx`}`.padEnd(12)),
     ]
-    if (grew !== 0) parts.push(t.dim(`  ${grew > 0 ? '+' : '-'}${formatTokens(Math.abs(grew))} ctx`))
-    if (turn.usd !== undefined) parts.push(t.dim('  '), t.plain(formatUsd(turn.usd)))
+    if (turn.usd !== undefined) parts.push(t.plain(formatUsd(turn.usd).padStart(6)))
     if (turn.cacheHit !== undefined && width >= 90) parts.push(t.dim(`  cache ${turn.cacheHit}%`))
     if (turn.isAborted) parts.push(t.paint('  interrupted', '#E8964A'))
     out.push(t.row(`turn-${turn.n}`, parts))

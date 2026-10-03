@@ -103,9 +103,10 @@ for (const surface of SURFACES) {
     expect(await ui.find({ key: 'tabs' })).toBeDefined()
     expect(store.get('view')).toMatchObject({ mode: 'detail' }) // remembered
 
-    await ui.press({ key: 'limits' })
+    expect(await ui.find({ key: 'limits' })).toBeUndefined() // the open tab is a label, not a button
     const limits = await text(ui)
     expect(limits).toContain('resets in 2h00m')
+    expect(limits).toContain('resets in 4d 0h')
     expect(limits).toContain('0.4x')
     expect(limits).toContain('38%') // 23% at 3h of 5h carries to 38%
     expect(limits).toContain('at reset')
