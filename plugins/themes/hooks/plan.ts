@@ -26,6 +26,22 @@ export function valueOf(entry: Entry, name: string, settings: ThemeSettings): st
 }
 
 /** The words that try a theme: its `on`. */
+/**
+ * Whether a theme `plugin` sets is held back: another catalog theme is kept and loaded,
+ * and neither the person nor the picker turned `plugin` on in this session.
+ */
+export function isHeld(plugin: string, chosen: Entry | undefined, found: readonly string[], allowed: ReadonlySet<string>): boolean {
+  if (chosen === undefined || chosen.plugin === plugin || allowed.has(plugin)) return false
+  return PLUGINS.includes(plugin) && found.includes(chosen.plugin)
+}
+
+/** The plugin a typed theme command turns on (`/real-sky on`, `/custom-theme night-reef`), if it turns one on. */
+export function turnsOnBy(command: string, args: string): string | undefined {
+  const words = args.trim().toLowerCase().replace(/\s+/g, ' ')
+  const entry = CATALOG.find(en => en.command === command && (words === en.on || words === en.id || words.startsWith(`${en.id} `)))
+  return entry?.plugin
+}
+
 export function tryRun(entry: Entry): Run {
   return { command: entry.command, args: entry.on, plugin: entry.plugin, isOff: false, turnsOn: entry.id }
 }

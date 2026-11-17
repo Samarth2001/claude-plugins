@@ -55,7 +55,7 @@ The picker draws no theme itself. It runs each theme's own slash command, the sa
 
 After an install or a removal, run `/reload-plugins` to finish. If the band can't run `claude` on your machine (it isn't on the PATH Claude Code sees), it shows the exact command to run in a shell instead.
 
-When a session starts and the theme you kept is on alongside another, the picker turns the other off and turns yours back on. It changes nothing when only one theme is on. Each theme turns itself back on at a start.
+When a session starts with a theme kept, only that theme draws. Another installed theme that tries to set itself is held back quietly, with no command run and nothing in the transcript, until you turn it on from the picker or by typing its command (`/real-sky on`). With no theme kept, nothing is held.
 
 ## What it stores
 
@@ -79,7 +79,8 @@ A theme that follows this repo's convention also takes `glass clear|soft|frosted
 - The desktop app draws its own solid backing behind the band, the full width of the window, while the band is open. A plugin can't change it; Keep or Cancel closes the band and it goes.
 
 - One theme shows at a time, and a theme's `off` clears whichever theme stands, so the picker always turns the old theme off before the new one on.
-- A theme the picker didn't see go on (one that set its theme before this plugin loaded) is only turned off at the next start, or when you pick another.
+- A theme that set itself before this plugin loaded (a hot reload of the picker mid-session) isn't held back until the next start, or until you pick another.
+- A held theme still counts itself on in its own settings; it is only held while this plugin is installed and a theme is kept. Uninstall the picker and every installed theme that is on draws again at the next start.
 - Anthropic's scene list is written into the catalog from `theme-examples` 0.4.3. A scene it adds later shows up once it is added to the catalog, and one it renames stops switching until the catalog follows.
 - Pictures on the tiles are the picker's own small drawings, not the themes' live scenes. Anthropic's scenes show as a colour swatch of their glass tint with two letters of the name.
 - Claude Code runs a command a plugin asks for once the session is idle, so a pick made during a turn takes effect when the turn ends.
