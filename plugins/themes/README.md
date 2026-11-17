@@ -11,7 +11,7 @@ claude plugin marketplace add Samarth2001/claude-plugins
 claude plugin install themes@samarth
 ```
 
-Then run `/reload-plugins` in an open session, or start a new one, and run `/themes`. Until one of Samarth's themes is installed, the band offers **Install Samarth's three**, which installs all three at once. To install everything from a shell instead:
+Then run `/reload-plugins` in an open session, or start a new one, and run `/themes`. Until one of Samarth's themes is installed, the band offers **Install all by Samarth**, which installs every one of them at once. To install everything from a shell instead:
 
 ```bash
 claude plugin install themes@samarth && claude plugin install constellation@samarth && claude plugin install real-sky@samarth && claude plugin install pixel-room@samarth
@@ -72,7 +72,11 @@ When a session starts and the theme you kept is on alongside another, the picker
 
 Add one entry to `CATALOG` in [`hooks/catalog.ts`](hooks/catalog.ts): its id, title, author, plugin, marketplace, command, the words that turn it on and off (and `forget`, if it has one), its options, and a thumbnail (`art` drawn in [`hooks/thumbs.ts`](hooks/thumbs.ts), or a `swatch` from one colour). Each option is a `choice` (a Select whose values each name the words to run) or an `action` (a Button, with an optional `confirm` question). The picker needs nothing else from the theme: it must only have a slash command with an on and an off.
 
+A theme that follows this repo's convention also takes `glass clear|soft|frosted`; give it the shared `GLASS` option so the picker shows it. An option typed as a command (`/pixel-room glass clear`) shows in the band as set.
+
 ## Known limits
+
+- The desktop app draws its own solid backing behind the band, the full width of the window, while the band is open. A plugin can't change it; Keep or Cancel closes the band and it goes.
 
 - One theme shows at a time, and a theme's `off` clears whichever theme stands, so the picker always turns the old theme off before the new one on.
 - A theme the picker didn't see go on (one that set its theme before this plugin loaded) is only turned off at the next start, or when you pick another.

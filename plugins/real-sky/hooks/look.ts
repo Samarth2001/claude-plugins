@@ -37,6 +37,16 @@ function look(label: string, scheme: 'light' | 'dark', anchors: Anchors, roles: 
   return { colors: made.theme, scheme, glass, anchors, roles, problems: made.problems }
 }
 
+/** How much veil sits between the sky and the words: none, a light one, or the full frost. */
+export type Glass = 'clear' | 'soft' | 'frosted'
+export const GLASS_WORDS: readonly Glass[] = ['clear', 'soft', 'frosted']
+
+export function veil(frost: ThemeBackdropGlass, glass: Glass): ThemeBackdropGlass | false {
+  if (glass === 'clear') return false
+  if (glass === 'soft') return { ...frost, blur: 4, opacity: Math.round((frost.opacity ?? 0.5) * 50) / 100 }
+  return frost
+}
+
 export const LOOKS: Record<Phase, Look> = {
   // Blue hour warming to apricot: a cool slate, the accent the low sun.
   dawn: look(

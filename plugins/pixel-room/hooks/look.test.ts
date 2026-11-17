@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { COLORS, GLASS, PROBLEMS } from './look'
+import { COLORS, PROBLEMS, glassFor } from './look'
 import { checkColors } from './make-colors.js'
 import { PAL } from './palette'
 
@@ -26,8 +26,10 @@ test('the room has one palette of about sixteen colors, each six-digit hex', () 
   expect(colors.every(color => /^#[0-9a-f]{6}$/.test(color))).toBe(true)
 })
 
-test('the glass is a veil, not a wall', () => {
-  for (const glass of [GLASS.day, GLASS.lamplight]) {
-    expect(glass).toMatchObject({ blur: 16, opacity: 0.5 })
+test('the glass is clear, a light veil, or the full frost', () => {
+  for (const look of ['day', 'lamplight'] as const) {
+    expect(glassFor(look, 'clear')).toBe(false)
+    expect(glassFor(look, 'soft')).toMatchObject({ blur: 4, opacity: 0.28 })
+    expect(glassFor(look, 'frosted')).toMatchObject({ blur: 16, opacity: 0.5 })
   }
 })

@@ -105,7 +105,7 @@ test('session.start sets the theme once: colors, a sky scene and glass', async (
   const set = w.themes[0]
   expect(set?.colors?.label).toBe('Constellation')
   expect(set?.overrideColorScheme).toBe('dark')
-  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: { blur: 18, tint: '#0a0f20', opacity: 0.46 } })
+  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: { blur: 4, tint: '#0a0f20', opacity: 0.24 } })
   // The first time, with an empty sky, a hint says what the sky is for, and only once.
   expect(w.toasts).toHaveLength(1)
   expect(w.store.get('hinted')).toBe(true)
@@ -265,7 +265,7 @@ test('/constellation and its words answer as documented', async ($, on) => {
   expect(w.store.has(KEY)).toBe(false)
   expect(w.themes).toHaveLength(3)
 
-  expect(await run('stars please')).toBe('Try /constellation, /constellation off, /constellation on, /constellation reset or /constellation forget.')
+  expect(await run('stars please')).toBe('Try /constellation, /constellation off, /constellation on, /constellation reset, /constellation glass clear|soft|frosted or /constellation forget.')
 
   await $.tool.call(edit(`${ROOT}/b.ts`))
   await $.turn.complete(done)

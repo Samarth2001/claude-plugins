@@ -51,6 +51,15 @@ const onOff = (name: string, label: string, args: (word: 'on' | 'off') => string
   ],
 })
 
+/** How clear the chat sits over the scene: no veil, a light one, or the full frost. */
+const GLASS: Option = {
+  kind: 'choice',
+  name: 'glass',
+  label: 'Glass',
+  initial: 'soft',
+  values: ['clear', 'soft', 'frosted'].map(word => ({ value: word, label: word, args: `glass ${word}` })),
+}
+
 const OURS: readonly Entry[] = [
   {
     id: 'constellation',
@@ -61,7 +70,7 @@ const OURS: readonly Entry[] = [
     on: 'on',
     off: 'off',
     forget: 'forget',
-    options: [{ kind: 'action', name: 'reset', label: 'Reset sky', args: 'reset', confirm: "Clear this project's stars?" }],
+    options: [GLASS, { kind: 'action', name: 'reset', label: 'Reset sky', args: 'reset', confirm: "Clear this project's stars?" }],
     thumbnail: { kind: 'art', art: 'constellation' },
   },
   {
@@ -81,6 +90,7 @@ const OURS: readonly Entry[] = [
         initial: 'auto',
         values: ['auto', 'dawn', 'day', 'dusk', 'night'].map(phase => ({ value: phase, label: phase, args: phase })),
       },
+      GLASS,
       onOff('almanac', 'Almanac', word => `almanac ${word}`),
     ],
     thumbnail: { kind: 'art', art: 'real-sky' },
@@ -95,6 +105,7 @@ const OURS: readonly Entry[] = [
     off: 'off',
     forget: 'forget',
     options: [
+      GLASS,
       onOff('card', 'Card', word => `card ${word}`),
       {
         kind: 'choice',

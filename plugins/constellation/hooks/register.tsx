@@ -1,6 +1,7 @@
 import type { EngineInterface, Register, ThemeResult } from 'claude-code'
 
-import { COLORS, GLASS } from './look'
+import { COLORS, GLASS_WORDS, glassFor } from './look'
+import type { Glass } from './look'
 import { buildScene } from './scene'
 import { REVEAL_MS, emptyDelta, emptySky, isEmptyDelta, isTestCommand, layout, mergeDelta, parseSky, relativePath, summary } from './sky'
 import type { Delta, Sky } from './sky'
@@ -19,6 +20,7 @@ let meteorUntil = 0
 // Each update draws under the other scene name, which is what makes the app draw the backdrop afresh.
 let flip = 0
 let isOn = true
+let glass: Glass = 'soft'
 let lastSet: ThemeResult | undefined
 // The last scene built, for a second window or a resize that asks again for the same sky.
 let built: { flip: number; sky: Sky; at: number; source: string; isRest: boolean } | undefined
@@ -44,7 +46,7 @@ function tell($: EngineInterface, step: string, error: unknown): void {
 async function setTheme($: EngineInterface): Promise<ThemeResult> {
   lastSet = await $.theme.set({
     colors: COLORS,
-    backdrop: { scene: SCENES[flip % 2] ?? 'sky-a', glass: GLASS },
+    backdrop: { scene: SCENES[flip % 2] ?? 'sky-a', glass: glassFor(glass) },
     overrideColorScheme: 'dark',
   })
   return lastSet
@@ -119,6 +121,16 @@ async function command($: EngineInterface, args: string): Promise<string> {
     await setTheme($)
     return 'Constellation is on.'
   }
+  if (word === 'glass' || word.startsWith('glass ')) {
+    const next = word.slice(6).trim() as Glass
+    if (!GLASS_WORDS.includes(next)) return `The glass is ${glass}. Try /constellation glass clear, soft or frosted.`
+    glass = next
+    if (glass === 'soft') await $.store.delete('glass')
+    else await $.store.set('glass', glass)
+    flip += 1
+    if (isOn) await setTheme($)
+    return `The glass is ${glass}.`
+  }
   if (word === 'reset') {
     await $.store.delete(skyKey())
     sky = emptySky()
@@ -132,6 +144,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
     // Before a removal: everything kept goes, every project's sky included. The theme is cleared only if it is this one's.
     const wasOn = isOn
     isOn = false
+    glass = 'soft'
     for (const key of await $.store.keys()) await $.store.delete(key)
     sky = emptySky()
     delta = emptyDelta()
@@ -139,7 +152,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
     if (wasOn) await $.theme.clear()
     return 'Constellation forgot every sky it kept and is off until it loads again.'
   }
-  return 'Try /constellation, /constellation off, /constellation on, /constellation reset or /constellation forget.'
+  return 'Try /constellation, /constellation off, /constellation on, /constellation reset, /constellation glass clear|soft|frosted or /constellation forget.'
 }
 
 export const register: Register = on => {
@@ -147,8 +160,8 @@ export const register: Register = on => {
     try {
       await $.command.register({
         name: 'constellation',
-        description: 'Your project\'s night sky: a summary, or "off", "on", "reset", or "forget" to delete every sky it kept',
-        argumentHint: '[off | on | reset | forget]',
+        description: 'Your project\'s night sky: a summary, or "off", "on", "reset", "glass clear|soft|frosted", or "forget" to delete every sky it kept',
+        argumentHint: '[off | on | reset | glass clear|soft|frosted | forget]',
       })
     } catch (error) {
       // A refused command costs the sky nothing.
@@ -157,6 +170,8 @@ export const register: Register = on => {
     try {
       root = await $.session.root()
       isOn = (await $.store.get('enabled')) !== false
+      const kept = await $.store.get('glass')
+      glass = GLASS_WORDS.includes(kept as Glass) ? (kept as Glass) : 'soft'
       sky = parseSky(await $.store.get(skyKey()))
       if (isOn) {
         const set = await setTheme($)

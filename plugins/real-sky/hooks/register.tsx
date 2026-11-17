@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderSurface, ThemeResult, Timer } from 'claude-code'
 
 import { cardAlt, cardLines, cardSvg, glanceSvg } from './card'
-import { LOOKS } from './look'
+import { GLASS_WORDS, LOOKS, veil } from './look'
+import type { Glass } from './look'
 import {
   PHASES,
   SEVERITY,
@@ -34,7 +35,7 @@ const SCENES = ['sky-a', 'sky-b'] as const
 const TICK_MS = 5 * 60_000
 const UNDRAWN = "This window doesn't draw backdrops; the sky shows in the desktop and mobile apps."
 const HELP =
-  'Try /real-sky, /real-sky almanac, /real-sky off or on, /real-sky dawn, day, dusk, night or auto, /real-sky almanac off or on, or /real-sky forget.'
+  'Try /real-sky, /real-sky almanac, /real-sky off or on, /real-sky dawn, day, dusk, night or auto, /real-sky almanac off or on, /real-sky glass clear, soft or frosted, or /real-sky forget.'
 
 // What the drawings read: the sky as last set, and the session barometer. Both outlive a reload.
 const skyState = atom({ plugin: 'real-sky', key: 'sky' } as const, null, { shape: 'sky-1' })
@@ -49,6 +50,7 @@ type View = Omit<Sky, 'isOn' | 'isPinned'>
 let isOn = true
 /** A part of the day pinned with /real-sky, or undefined to follow the clock. */
 let pinned: Phase | undefined
+let glass: Glass = 'soft'
 let weather: Weather = 'clear'
 let tally: Tally = emptyTally()
 // Each update draws under the other scene name, which is what makes the app draw the backdrop afresh.
@@ -86,7 +88,7 @@ async function setTheme($: EngineInterface, next: View): Promise<ThemeResult> {
   await update($, skyState, () => sky)
   lastSet = await $.theme.set({
     colors: look.colors,
-    backdrop: { scene: SCENES[flip % 2] ?? 'sky-a', glass: look.glass },
+    backdrop: { scene: SCENES[flip % 2] ?? 'sky-a', glass: veil(look.glass, glass) },
     overrideColorScheme: look.scheme,
   })
   return lastSet
@@ -159,6 +161,15 @@ async function command($: EngineInterface, args: string): Promise<string> {
     return lines.join('\n')
   }
   if (first === 'almanac') return almanac($, rest.join(' '))
+  if (first === 'glass') {
+    const next = rest.join(' ') as Glass
+    if (!GLASS_WORDS.includes(next)) return `The glass is ${glass}. Try /real-sky glass clear, soft or frosted.`
+    glass = next
+    if (glass === 'soft') await $.store.delete('glass')
+    else await $.store.set('glass', glass)
+    await refresh($, true)
+    return `The glass is ${glass}.`
+  }
   if (rest.length > 0) return HELP
   if (first === 'off') {
     isOn = false
@@ -173,6 +184,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
     const wasOn = isOn
     isOn = false
     pinned = undefined
+    glass = 'soft'
     for (const key of await $.store.keys()) await $.store.delete(key)
     if (wasOn) await $.theme.clear()
     await update($, skyState, sky => (sky === null ? null : { ...sky, isOn: false }))
@@ -205,8 +217,8 @@ export const register: Register = on => {
     try {
       await $.command.register({
         name: 'real-sky',
-        description: 'The almanac: where the sky stands, or "almanac", "off", "on", a part of the day to pin, "auto", or "forget" to delete what it kept',
-        argumentHint: '[almanac [off | on] | off | on | dawn | day | dusk | night | auto | forget]',
+        description: 'The almanac: where the sky stands, or "almanac", "off", "on", a part of the day to pin, "auto", "glass clear|soft|frosted", or "forget" to delete what it kept',
+        argumentHint: '[almanac [off | on] | off | on | dawn | day | dusk | night | auto | glass clear|soft|frosted | forget]',
       })
     } catch (error) {
       // A refused command costs the sky nothing.
@@ -216,6 +228,8 @@ export const register: Register = on => {
       isOn = (await $.store.get('enabled')) !== false
       const stored = await $.store.get('phase')
       pinned = typeof stored === 'string' && isPhase(stored) ? stored : undefined
+      const kept = await $.store.get('glass')
+      glass = GLASS_WORDS.includes(kept as Glass) ? (kept as Glass) : 'soft'
       if (isOn) await setTheme($, await view($))
     } catch (error) {
       tell($, 'session.start', error)

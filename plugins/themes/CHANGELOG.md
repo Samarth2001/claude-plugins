@@ -8,7 +8,7 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 
 - `/themes` opens a band above the prompt with a strip of every theme: a small picture and its title on the desktop and mobile apps, a line of text on the terminal, each tagged with who built it. ✓ marks the theme that is on, and ‹ › page through the tiles when they don't fit.
 - Picking a tile tries the theme live, turning the one that was on off first. Keep keeps it and closes the band; Cancel puts back what was on.
-- The picked theme's options under the strip, each running the theme's own command: Real Sky's part of the day and almanac, Pixel Room's card and sound, Constellation's reset after a yes, and the scope an Anthropic scene is kept for.
+- The picked theme's options under the strip, each running the theme's own command: each of Samarth's themes' glass, Real Sky's part of the day and almanac, Pixel Room's card and sound, Constellation's reset after a yes, and the scope an Anthropic scene is kept for. An option set by typing the theme's own command, such as `/pixel-room glass clear`, shows in the band as set, and a typed `forget` clears what the band showed for that theme.
 - Install and Remove from the band. Remove turns the theme off and deletes what it stored before uninstalling it; where `claude` can't run from the session, the band shows the command to run.
 - Samarth's three themes and the twenty scenes of Anthropic's `theme-examples`, listed in one catalog file where adding a theme is one entry.
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.

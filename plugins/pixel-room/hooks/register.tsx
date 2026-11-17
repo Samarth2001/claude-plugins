@@ -3,7 +3,8 @@ import type { EngineInterface, Register, ThemeResult, Timer } from 'claude-code'
 
 import type { RoomCard } from '../types'
 import { buildCard, buildGlance } from './card'
-import { COLORS, GLASS } from './look'
+import { COLORS, GLASS_WORDS, glassFor } from './look'
+import type { Glass } from './look'
 import { caption, describeRoom, freshOutcome, isTestCommand, modeLabel, noteCall, phaseAt, roomState, soundFor, spinnerPhrase } from './room'
 import type { Cat, Phase, RoomState, Sound } from './room'
 import { buildScene } from './scene'
@@ -16,7 +17,7 @@ const SCENES = ['room-a', 'room-b'] as const
 const TICK_MS = 10 * 60_000
 const GAIN = 0.5
 const UNDRAWN = "This window doesn't draw backdrops; the room shows in the desktop and mobile apps."
-const HELP = 'Try /pixel-room, or off, on, mute, unmute, card, card off, card on or forget.'
+const HELP = 'Try /pixel-room, or off, on, mute, unmute, glass clear|soft|frosted, card, card off, card on or forget.'
 
 const IDLE: RoomCard = { cat: 'asleep', phase: 'day', turns: 0, plant: 'neutral', isWorking: false }
 // What the card draws; tagged so a value an older version stored is read as IDLE.
@@ -30,6 +31,7 @@ let flip = 0
 let isOn = true
 let isMuted = false
 let isCardOn = true
+let glass: Glass = 'soft'
 let lastSet: ThemeResult | undefined
 let outcome = freshOutcome()
 let tick: Timer | undefined
@@ -66,7 +68,7 @@ async function setTheme($: EngineInterface): Promise<ThemeResult> {
   const look = phase === 'day' ? 'day' : 'lamplight'
   lastSet = await $.theme.set({
     colors: COLORS[look],
-    backdrop: { scene: SCENES[flip % 2] ?? 'room-a', glass: GLASS[look] },
+    backdrop: { scene: SCENES[flip % 2] ?? 'room-a', glass: glassFor(look, glass) },
     overrideColorScheme: 'dark',
   })
   return lastSet
@@ -158,6 +160,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
     // Before a removal: every choice it kept goes. The theme is cleared only if it is this one's.
     const wasOn = isOn
     isOn = false
+    glass = 'soft'
     for (const key of await $.store.keys()) await $.store.delete(key)
     if (wasOn) await $.theme.clear()
     await $.ui.close({ id: PANE })
@@ -173,6 +176,15 @@ async function command($: EngineInterface, args: string): Promise<string> {
     isMuted = false
     await $.store.delete('muted')
     return 'Sounds are on.'
+  }
+  if (word === 'glass' || word.startsWith('glass ')) {
+    const next = word.slice(6) as Glass
+    if (!GLASS_WORDS.includes(next)) return `The glass is ${glass}. Try /pixel-room glass clear, soft or frosted.`
+    glass = next
+    if (glass === 'soft') await $.store.delete('glass')
+    else await $.store.set('glass', glass)
+    await redraw($)
+    return `The glass is ${glass}.`
   }
   if (word === 'card') {
     const opened = await $.ui.open({ id: PANE, title: TITLE })
@@ -198,8 +210,8 @@ export const register: Register = on => {
     try {
       await $.command.register({
         name: 'pixel-room',
-        description: 'The pixel room: how it stands, or "off", "on", "mute", "unmute", "card", "card off", "card on", or "forget" to delete what it kept',
-        argumentHint: '[off | on | mute | unmute | card [off | on] | forget]',
+        description: 'The pixel room: how it stands, or "off", "on", "mute", "unmute", "glass clear|soft|frosted", "card", "card off", "card on", or "forget" to delete what it kept',
+        argumentHint: '[off | on | mute | unmute | glass clear|soft|frosted | card [off | on] | forget]',
       })
     } catch (error) {
       // A refused command costs the room nothing.
@@ -209,6 +221,8 @@ export const register: Register = on => {
       isOn = (await $.store.get('enabled')) !== false
       isMuted = (await $.store.get('muted')) === true
       isCardOn = (await $.store.get('card')) !== false
+      const kept = await $.store.get('glass')
+      glass = GLASS_WORDS.includes(kept as Glass) ? (kept as Glass) : 'soft'
       await checkPhase($)
       if (isOn) await setTheme($)
       await sync($)

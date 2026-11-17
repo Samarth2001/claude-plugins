@@ -27,4 +27,12 @@ const made = makeColors({
 export const COLORS: ThemeColors = made.theme
 /** What the design system says of the palette's contrast; none of it stops Desktop painting it. */
 export const PROBLEMS: readonly string[] = made.problems
-export const GLASS: ThemeBackdropGlass = { blur: 18, tint: '#0a0f20', opacity: 0.46 }
+/** How much veil sits between the sky and the words: none, a light one, or the full frost. */
+export type Glass = 'clear' | 'soft' | 'frosted'
+export const GLASS_WORDS: readonly Glass[] = ['clear', 'soft', 'frosted']
+
+export function glassFor(glass: Glass): ThemeBackdropGlass | false {
+  if (glass === 'clear') return false
+  if (glass === 'soft') return { blur: 4, tint: '#0a0f20', opacity: 0.24 }
+  return { blur: 18, tint: '#0a0f20', opacity: 0.46 }
+}

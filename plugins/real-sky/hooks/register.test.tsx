@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On, PaneOpenArgs, ThemeSetArgs } from 'claude-code'
 
-import { LOOKS } from './look'
+import { LOOKS, veil } from './look'
 
 /** A local clock reading on the test day, whatever this machine's time zone. */
 const at = (hour: number, minute = 0) => new Date(2026, 10, 17, hour, minute).getTime()
@@ -129,7 +129,7 @@ test('session.start at noon sets the day theme once: light colors, a sky scene a
   const set = w.themes[0]
   expect(set?.colors?.label).toBe('Real Sky day')
   expect(set?.overrideColorScheme).toBe('light')
-  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: LOOKS.day.glass })
+  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: veil(LOOKS.day.glass, 'soft') })
 })
 
 test('late evening is night, with dark colors', async ($, on) => {

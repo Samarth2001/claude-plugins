@@ -127,7 +127,7 @@ test('session.start sets the theme once: day colors, a room scene and glass', as
   const set = w.themes[0]
   expect(set?.colors?.label).toBe('Pixel Room')
   expect(set?.overrideColorScheme).toBe('dark')
-  expect(set?.backdrop).toMatchObject({ scene: 'room-a', glass: { blur: 16, tint: '#16121f', opacity: 0.5 } })
+  expect(set?.backdrop).toMatchObject({ scene: 'room-a', glass: { blur: 4, tint: '#16121f', opacity: 0.28 } })
 })
 
 test('in the evening the lamp is lit and the colors are warmer', async ($, on) => {
@@ -392,6 +392,15 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
     'Rain on the glass, a grey afternoon. The cat is asleep on the sill.\n0 cups so far; the plant looks neutral. Sounds are on, softly.\nThe room is drawn behind this window.',
   )
 
+  const themesBefore = w.themes.length
+  expect(await run($, 'glass clear')).toBe('The glass is clear.')
+  expect(w.store.get('glass')).toBe('clear')
+  expect(w.themes.at(-1)?.backdrop).toMatchObject({ glass: false })
+  expect(w.themes.length).toBe(themesBefore + 1)
+  expect(await run($, 'glass foggy')).toBe('The glass is clear. Try /pixel-room glass clear, soft or frosted.')
+  expect(await run($, 'glass soft')).toBe('The glass is soft.')
+  expect(w.store.has('glass')).toBe(false)
+
   expect(await run($, 'mute')).toBe('Sounds are muted. /pixel-room unmute brings them back.')
   expect(w.store.get('muted')).toBe(true)
   await $.turn.start(begin)
@@ -422,7 +431,7 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(w.store.has('enabled')).toBe(false)
   expect(w.themes).toHaveLength(before + 1)
 
-  expect(await run($, 'meow')).toBe('Try /pixel-room, or off, on, mute, unmute, card, card off, card on or forget.')
+  expect(await run($, 'meow')).toBe('Try /pixel-room, or off, on, mute, unmute, glass clear|soft|frosted, card, card off, card on or forget.')
 })
 
 test('/pixel-room forget deletes everything it kept, and clears only a theme of its own', async ($, on) => {

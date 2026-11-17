@@ -57,6 +57,7 @@ Worse weather shows as soon as it happens, mid-turn. The sky clears only when a 
 | `/real-sky on` | Brings them back |
 | `/real-sky dawn`, `day`, `dusk` or `night` | Pins that part of the day, to preview it or keep it |
 | `/real-sky auto` | Follows your clock again |
+| `/real-sky glass clear\|soft\|frosted` | How much veil sits over the sky behind the chat: none, a light one (the default), or the full frost. Kept across sessions. |
 | `/real-sky forget` | Deletes its settings and turns it off for this session. Run it before removing the plugin |
 
 To try it beside the other themes and switch between them, install the [`themes`](../themes) picker and run `/themes`.

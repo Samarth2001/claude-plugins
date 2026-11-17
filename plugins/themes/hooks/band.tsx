@@ -217,7 +217,7 @@ export function drawBand(ui: ElementTable, view: View, act: Actions, room: Room)
   const { pages: all, index, tiles, isPictures } = layout(view, room)
   const count = all.length
   const pageText = count > 1 ? `${index + 1}/${count}` : ''
-  const install = view.canInstallOurs ? [<Button key="install-ours" dimColor label="Install Samarth's three" onPress={() => act.installOurs()} />] : []
+  const install = view.canInstallOurs ? [<Button key="install-ours" dimColor label="Install all by Samarth" onPress={() => act.installOurs()} />] : []
 
   const rows: RenderElement[] = []
   if (isPictures) {

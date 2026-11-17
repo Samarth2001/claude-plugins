@@ -68,6 +68,7 @@ A test run is a Bash or PowerShell command such as `npm test`, `pytest`, `cargo 
 | `/pixel-room unmute` | Brings the sounds back |
 | `/pixel-room off` | Turns off the room, its card, working line, footer label and sounds, here and in later sessions |
 | `/pixel-room on` | Brings the room back |
+| `/pixel-room glass clear\|soft\|frosted` | How much veil sits over the room behind the chat: none, a light one (the default), or the full frost. Kept across sessions. |
 | `/pixel-room forget` | Deletes its three settings and turns it off for this session. Run it before removing the plugin |
 
 To try it beside the other themes and switch between them, install the [`themes`](../themes) picker and run `/themes`.

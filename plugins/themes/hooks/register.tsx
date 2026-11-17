@@ -178,6 +178,27 @@ async function cancel($: EngineInterface): Promise<void> {
   })
 }
 
+/** Records the option a typed theme command set, so the band shows what the theme now has. */
+async function follow($: EngineInterface, command: string, args: string): Promise<void> {
+  const words = args.trim().toLowerCase().replace(/\s+/g, ' ')
+  for (const entry of CATALOG.filter(en => en.command === command)) {
+    if (entry.forget !== undefined && words === entry.forget) {
+      // The theme forgot its settings, so the picker forgets what it showed for them.
+      const next = await update($, settings, all => Object.fromEntries(Object.entries(all).filter(([id]) => id !== entry.id)))
+      await $.store.set('settings', next)
+      return
+    }
+    for (const option of entry.options) {
+      if (option.kind !== 'choice' || option.isOnKeep === true) continue
+      const choice = option.values.find(v => v.args === words)
+      if (choice === undefined) continue
+      const next = await update($, settings, (all): ThemeSettings => ({ ...all, [entry.id]: { ...all[entry.id], [option.name]: choice.value } }))
+      await $.store.set('settings', next)
+      return
+    }
+  }
+}
+
 async function choose($: EngineInterface, id: string, name: string, value: string): Promise<void> {
   const entry = entryOf(id)
   const option = entry?.options.find(o => o.name === name)
@@ -371,7 +392,16 @@ export const register: Register = on => {
   on('command.run', async ($, e, next) => {
     const out = await next(e)
     const origin = e.origin as typeof e.origin | undefined
-    if (origin?.kind !== 'plugin' || origin.name !== PLUGIN || !COMMANDS.includes(e.command)) return out
+    if (!COMMANDS.includes(e.command)) return out
+    if (origin?.kind !== 'plugin' || origin.name !== PLUGIN) {
+      // Typed by the person: an option it sets shows in the band as set.
+      try {
+        await follow($, e.command, e.args)
+      } catch (error) {
+        tell($, 'following a command', error)
+      }
+      return out
+    }
     said.set(`${e.command} ${e.args}`, out.text)
     const { ref: _ref, text: _text, ...rest } = out
     return rest
@@ -385,32 +415,7 @@ export const register: Register = on => {
       const { Text } = ui
       return <Text dimColor>Themes</Text>
     }
-    const found = await read($, installed)
-    const view: View = {
-      band: b,
-      active: await read($, active),
-      tiles: tilesOf(found),
-      pending: await read($, pending),
-      settings: await read($, settings),
-      canInstallOurs: !CATALOG.some(entry => entry.author === 'Samarth' && found.includes(entry.plugin)),
-    }
-    const actions: Actions = {
-      pick: id => void pick($, id),
-      page: index => void update($, band, x => ({ ...x, page: index })),
-      keep: () => void keep($),
-      cancel: () => void cancel($),
-      choose: (id, name, value) => void choose($, id, name, value),
-      act: (id, name) => void act($, id, name),
-      confirm: () => void confirm($),
-      back: () => void update($, band, x => ({ ...x, confirm: null })),
-      install: id => void install($, [id]),
-      installOurs: () =>
-        void install(
-          $,
-          CATALOG.filter(entry => entry.author === 'Samarth').map(entry => entry.id),
-        ),
-    }
-    return drawBand(ui, view, actions, { columns: e.props.bodyColumns, maxRows: e.props.maxRows, surface: e.surface })
+    return drawBand(ui, await viewOf($, b), actionsOf($), { columns: e.props.bodyColumns, maxRows: e.props.maxRows, surface: e.surface })
   })
 
   on('command.run', { command: PLUGIN }, async ($, e) => {
@@ -421,4 +426,35 @@ export const register: Register = on => {
       return { text: `The picker could not do that: ${message(error)}` }
     }
   })
+}
+
+async function viewOf($: EngineInterface, b: Band): Promise<View> {
+  const found = await read($, installed)
+  return {
+    band: b,
+    active: await read($, active),
+    tiles: tilesOf(found),
+    pending: await read($, pending),
+    settings: await read($, settings),
+    canInstallOurs: !CATALOG.some(entry => entry.author === 'Samarth' && found.includes(entry.plugin)),
+  }
+}
+
+function actionsOf($: EngineInterface): Actions {
+  return {
+    pick: id => void pick($, id),
+    page: index => void update($, band, x => ({ ...x, page: index })),
+    keep: () => void keep($),
+    cancel: () => void cancel($),
+    choose: (id, name, value) => void choose($, id, name, value),
+    act: (id, name) => void act($, id, name),
+    confirm: () => void confirm($),
+    back: () => void update($, band, x => ({ ...x, confirm: null })),
+    install: id => void install($, [id]),
+    installOurs: () =>
+      void install(
+        $,
+        CATALOG.filter(entry => entry.author === 'Samarth').map(entry => entry.id),
+      ),
+  }
 }

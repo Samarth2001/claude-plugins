@@ -114,6 +114,16 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
+  test(`${surface}: an option typed as the theme's command shows as set, and a typed forget clears it`, async ($, on) => {
+    const w = world()
+    engine(on, w)
+    await $.session.start(start)
+    await $.command.run({ command: 'pixel-room', args: 'glass clear', origin: { kind: 'person' } } as never)
+    expect(w.store.get('settings')).toEqual({ 'pixel-room': { glass: 'clear' } })
+    await $.command.run({ command: 'pixel-room', args: 'forget', origin: { kind: 'person' } } as never)
+    expect(w.store.get('settings')).toEqual({})
+  })
+
   test(`${surface}: Keep keeps the picked theme and closes the band`, async ($, on) => {
     const w = world()
     engine(on, w)

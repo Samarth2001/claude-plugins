@@ -47,6 +47,7 @@ The sky changes only when a turn ends. Then new stars ignite one after another, 
 | `/constellation off` | Turns the sky off here and in the sessions you start later. Your sky is kept and keeps recording |
 | `/constellation on` | Brings the sky back |
 | `/constellation reset` | Clears this project's sky |
+| `/constellation glass clear\|soft\|frosted` | How much veil sits over the sky behind the chat: none, a light one (the default), or the full frost. Kept across sessions. |
 | `/constellation forget` | Deletes every project's sky and everything else it stored, and turns it off for this session. Run it before removing the plugin |
 
 To try it beside the other themes and switch between them, install the [`themes`](../themes) picker and run `/themes`.

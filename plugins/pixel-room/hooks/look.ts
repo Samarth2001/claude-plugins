@@ -57,7 +57,13 @@ export const PROBLEMS: { day: readonly string[]; lamplight: readonly string[] } 
   day: day.problems,
   lamplight: lamplight.problems,
 }
-export const GLASS: { day: ThemeBackdropGlass; lamplight: ThemeBackdropGlass } = {
-  day: { blur: 16, tint: '#16121f', opacity: 0.5 },
-  lamplight: { blur: 16, tint: '#18121d', opacity: 0.5 },
+/** How much veil sits between the room and the words: none, a light one, or the full frost. */
+export type Glass = 'clear' | 'soft' | 'frosted'
+export const GLASS_WORDS: readonly Glass[] = ['clear', 'soft', 'frosted']
+const TINT = { day: '#16121f', lamplight: '#18121d' } as const
+
+export function glassFor(look: 'day' | 'lamplight', glass: Glass): ThemeBackdropGlass | false {
+  if (glass === 'clear') return false
+  if (glass === 'soft') return { blur: 4, tint: TINT[look], opacity: 0.28 }
+  return { blur: 16, tint: TINT[look], opacity: 0.5 }
 }

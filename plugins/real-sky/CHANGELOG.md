@@ -16,6 +16,7 @@ All notable changes to real-sky. The format follows [Keep a Changelog](https://k
 - A spinner phrase from the sky, sampled once a turn, such as "Watching the light go" at dusk or "Riding out the storm". A message the app sets stands, and so does a desktop step's own description.
 - A footer label among the session's modes, such as `dusk · clear`.
 - An almanac card: the sun's path in miniature with now marked, the hour, the four parts of the day on one line, the moon's phase, and a session barometer whose needle falls with errors and rises with clean turns, a set hand at where the turn began, and a one-line forecast. It opens as a compact widget once a session in the desktop app, and draws as text in the terminal.
+- `/real-sky glass clear`, `soft` or `frosted` sets how much veil sits between the sky and the chat. Soft is the default.
 - `/real-sky` reads the almanac in a few lines; `/real-sky almanac` opens the card and `almanac off` and `on` keep the choice; `/real-sky off` and `on` turn the sky off and back; `dawn`, `day`, `dusk` and `night` pin a part of the day and `auto` follows the clock again; `/real-sky forget` deletes its settings, for a clean removal.
 - Reduced motion stills the cirrus, rain, stars and the mast's light, and drops the lightning.
 
