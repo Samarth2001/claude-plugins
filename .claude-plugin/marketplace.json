@@ -16,9 +16,21 @@
       "description": "A night sky behind the desktop app that maps your work: every file Claude touches becomes a star, and files edited together join into constellations that build up per project",
       "category": "themes",
       "tags": ["mod", "theme", "backdrop", "desktop"]
+    },
+    {
+      "name": "real-sky",
+      "source": "./plugins/real-sky",
+      "description": "A quiet sky almanac behind the desktop app: the sun and moon ride an hour arc at your local time, the colors follow the light, and the weather and a barometer follow the session",
+      "category": "themes",
+      "tags": ["mod", "theme", "backdrop", "desktop"]
+    },
+    {
+      "name": "pixel-room",
+      "source": "./plugins/pixel-room",
+      "description": "A lo-fi pixel desk scene behind the desktop app with rain on the window and a cat that sleeps until Claude works, a lamp that comes on at night and soft sounds on finish or failure",
+      "category": "themes",
+      "tags": ["mod", "theme", "backdrop", "desktop"]
     }
   ],
-  "renames": {
-    "buddy": "hud"
-  }
+  "renames": { "buddy": "hud" }
 }
