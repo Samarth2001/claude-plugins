@@ -43,7 +43,8 @@ export const GLASS_WORDS: readonly Glass[] = ['clear', 'soft', 'frosted']
 
 export function veil(frost: ThemeBackdropGlass, glass: Glass): ThemeBackdropGlass | false {
   if (glass === 'clear') return false
-  if (glass === 'soft') return { ...frost, blur: 4, opacity: Math.round((frost.opacity ?? 0.5) * 50) / 100 }
+  // The same soft veil as the other themes: a light blur at about a quarter, in this hour's tint.
+  if (glass === 'soft') return { ...frost, blur: 4, opacity: 0.26 }
   return frost
 }
 

@@ -129,7 +129,9 @@ test('session.start at noon sets the day theme once: light colors, a sky scene a
   const set = w.themes[0]
   expect(set?.colors?.label).toBe('Real Sky day')
   expect(set?.overrideColorScheme).toBe('light')
-  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: veil(LOOKS.day.glass, 'soft') })
+  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: { blur: 4, tint: '#e7eaec', opacity: 0.26 } })
+  expect(veil(LOOKS.day.glass, 'clear')).toBe(false)
+  expect(veil(LOOKS.day.glass, 'frosted')).toBe(LOOKS.day.glass)
 })
 
 test('late evening is night, with dark colors', async ($, on) => {
