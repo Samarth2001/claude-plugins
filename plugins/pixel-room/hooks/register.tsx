@@ -16,7 +16,7 @@ const SCENES = ['room-a', 'room-b'] as const
 const TICK_MS = 10 * 60_000
 const GAIN = 0.5
 const UNDRAWN = "This window doesn't draw backdrops; the room shows in the desktop and mobile apps."
-const HELP = 'Try /pixel-room, or off, on, mute, unmute, card, card off or card on.'
+const HELP = 'Try /pixel-room, or off, on, mute, unmute, card, card off, card on or forget.'
 
 const IDLE: RoomCard = { cat: 'asleep', phase: 'day', turns: 0, plant: 'neutral', isWorking: false }
 // What the card draws; tagged so a value an older version stored is read as IDLE.
@@ -154,6 +154,16 @@ async function command($: EngineInterface, args: string): Promise<string> {
     $.ui.invalidate('ui.render')
     return 'Pixel Room is on.'
   }
+  if (word === 'forget') {
+    // Before a removal: every choice it kept goes. The theme is cleared only if it is this one's.
+    const wasOn = isOn
+    isOn = false
+    for (const key of await $.store.keys()) await $.store.delete(key)
+    if (wasOn) await $.theme.clear()
+    await $.ui.close({ id: PANE })
+    $.ui.invalidate('ui.render')
+    return 'Pixel Room forgot what it kept and is off until it loads again.'
+  }
   if (word === 'mute') {
     isMuted = true
     await $.store.set('muted', true)
@@ -188,8 +198,8 @@ export const register: Register = on => {
     try {
       await $.command.register({
         name: 'pixel-room',
-        description: 'The pixel room: how it stands, or "off", "on", "mute", "unmute", "card", "card off" or "card on"',
-        argumentHint: '[off | on | mute | unmute | card [off | on]]',
+        description: 'The pixel room: how it stands, or "off", "on", "mute", "unmute", "card", "card off", "card on", or "forget" to delete what it kept',
+        argumentHint: '[off | on | mute | unmute | card [off | on] | forget]',
       })
     } catch (error) {
       // A refused command costs the room nothing.

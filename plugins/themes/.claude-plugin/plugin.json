@@ -1,0 +1,21 @@
+{
+  "name": "themes",
+  "displayName": "Themes",
+  "version": "0.1.0",
+  "description": "A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button",
+  "author": {
+    "name": "Samarth Rayar",
+    "url": "https://github.com/Samarth2001"
+  },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/themes",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "theme",
+    "picker",
+    "backdrop",
+    "desktop"
+  ],
+  "types": "./types/index.d.ts"
+}

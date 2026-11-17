@@ -265,7 +265,16 @@ test('/constellation and its words answer as documented', async ($, on) => {
   expect(w.store.has(KEY)).toBe(false)
   expect(w.themes).toHaveLength(3)
 
-  expect(await run('stars please')).toBe('Try /constellation, /constellation off, /constellation on or /constellation reset.')
+  expect(await run('stars please')).toBe('Try /constellation, /constellation off, /constellation on, /constellation reset or /constellation forget.')
+
+  await $.tool.call(edit(`${ROOT}/b.ts`))
+  await $.turn.complete(done)
+  const clears = w.clears
+  expect(await run('forget')).toBe('Constellation forgot every sky it kept and is off until it loads again.')
+  expect([...w.store.keys()]).toEqual([])
+  expect(w.clears).toBe(clears + 1)
+  await run('forget')
+  expect(w.clears).toBe(clears + 1) // off already: whatever theme stands is left alone
 })
 
 test('the summary says when this window draws no backdrops', async ($, on) => {

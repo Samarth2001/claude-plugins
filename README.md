@@ -38,6 +38,7 @@ Installed plugins also load in the Claude desktop app (Code tab, local sessions)
 | [Constellation](plugins/constellation) | `constellation` | themes | A night sky behind the desktop app that maps your work: every file Claude touches becomes a star, and files edited together join into constellations that build up per project |
 | [Real Sky](plugins/real-sky) | `real-sky` | themes | A quiet sky almanac behind the desktop app: the sun and moon ride an hour arc at your local time, the colors follow the light, and the weather and a barometer follow the session |
 | [Pixel Room](plugins/pixel-room) | `pixel-room` | themes | A lo-fi pixel desk scene behind the desktop app with rain on the window and a cat that sleeps until Claude works, a lamp that comes on at night and soft sounds on finish or failure |
+| [Themes](plugins/themes) | `themes` | mods | A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button |
 <!-- catalog:end -->
 
 Each plugin has its own README covering what it adds, how to use and configure it, and its changelog. This table is generated from [`marketplace.json`](.claude-plugin/marketplace.json) by `scripts/catalog.mts`.

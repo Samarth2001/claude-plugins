@@ -78,6 +78,7 @@ function engine(on: On, w: World, now = NOON) {
     w.store.delete(e.key)
     return { value: undefined } as never
   })
+  on('store.keys', () => ({ value: [...w.store.keys()] }) as never)
   on('tool.call', () =>
     (w.tools === 'deny' ? { deny: 'no' } : w.tools === 'error' ? { isError: true, result: 'failed', text: 'failed' } : { result: {} }) as never,
   )
@@ -421,7 +422,21 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(w.store.has('enabled')).toBe(false)
   expect(w.themes).toHaveLength(before + 1)
 
-  expect(await run($, 'meow')).toBe('Try /pixel-room, or off, on, mute, unmute, card, card off or card on.')
+  expect(await run($, 'meow')).toBe('Try /pixel-room, or off, on, mute, unmute, card, card off, card on or forget.')
+})
+
+test('/pixel-room forget deletes everything it kept, and clears only a theme of its own', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await run($, 'mute')
+  await run($, 'card off')
+  expect(await run($, 'forget')).toBe('Pixel Room forgot what it kept and is off until it loads again.')
+  expect([...w.store.keys()]).toEqual([])
+  expect(w.clears).toBe(1)
+  // Off already: a forget leaves whatever theme stands alone.
+  await run($, 'forget')
+  expect(w.clears).toBe(1)
 })
 
 test('the summary says when this window draws no backdrops', async ($, on) => {

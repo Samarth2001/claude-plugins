@@ -32,6 +32,7 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   - `card`, `card off` and `card on` open the card or put it away
   - `mute` and `unmute` turn the sounds off and back on
   - `off` and `on` turn the whole room off and back on
+  - `forget` deletes its settings, for a clean removal
 
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.

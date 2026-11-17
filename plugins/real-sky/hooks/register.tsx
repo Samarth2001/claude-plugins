@@ -34,7 +34,7 @@ const SCENES = ['sky-a', 'sky-b'] as const
 const TICK_MS = 5 * 60_000
 const UNDRAWN = "This window doesn't draw backdrops; the sky shows in the desktop and mobile apps."
 const HELP =
-  'Try /real-sky, /real-sky almanac, /real-sky off or on, /real-sky dawn, day, dusk, night or auto, or /real-sky almanac off or on.'
+  'Try /real-sky, /real-sky almanac, /real-sky off or on, /real-sky dawn, day, dusk, night or auto, /real-sky almanac off or on, or /real-sky forget.'
 
 // What the drawings read: the sky as last set, and the session barometer. Both outlive a reload.
 const skyState = atom({ plugin: 'real-sky', key: 'sky' } as const, null, { shape: 'sky-1' })
@@ -168,6 +168,17 @@ async function command($: EngineInterface, args: string): Promise<string> {
     await $.ui.close({ id: PANE })
     return 'The sky is off. /real-sky on brings it back.'
   }
+  if (first === 'forget') {
+    // Before a removal: every choice it kept goes. The theme is cleared only if it is this one's.
+    const wasOn = isOn
+    isOn = false
+    pinned = undefined
+    for (const key of await $.store.keys()) await $.store.delete(key)
+    if (wasOn) await $.theme.clear()
+    await update($, skyState, sky => (sky === null ? null : { ...sky, isOn: false }))
+    await $.ui.close({ id: PANE })
+    return 'Real Sky forgot what it kept and is off until it loads again.'
+  }
   if (first === 'on') {
     isOn = true
     await $.store.delete('enabled')
@@ -194,8 +205,8 @@ export const register: Register = on => {
     try {
       await $.command.register({
         name: 'real-sky',
-        description: 'The almanac: where the sky stands, or "almanac", "off", "on", a part of the day to pin, or "auto"',
-        argumentHint: '[almanac [off | on] | off | on | dawn | day | dusk | night | auto]',
+        description: 'The almanac: where the sky stands, or "almanac", "off", "on", a part of the day to pin, "auto", or "forget" to delete what it kept',
+        argumentHint: '[almanac [off | on] | off | on | dawn | day | dusk | night | auto | forget]',
       })
     } catch (error) {
       // A refused command costs the sky nothing.

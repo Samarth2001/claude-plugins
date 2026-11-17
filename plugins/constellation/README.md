@@ -47,6 +47,9 @@ The sky changes only when a turn ends. Then new stars ignite one after another, 
 | `/constellation off` | Turns the sky off here and in the sessions you start later. Your sky is kept and keeps recording |
 | `/constellation on` | Brings the sky back |
 | `/constellation reset` | Clears this project's sky |
+| `/constellation forget` | Deletes every project's sky and everything else it stored, and turns it off for this session. Run it before removing the plugin |
+
+To try it beside the other themes and switch between them, install the [`themes`](../themes) picker and run `/themes`.
 
 ## What it needs
 
@@ -59,12 +62,12 @@ The sky changes only when a turn ends. Then new stars ignite one after another, 
 - It stores only project-relative file paths with their edit and read counts and times, one sky per project, in the plugin's own store on your machine. A project holds at most 400 stars and 48 constellations: past that, the faintest stars and the oldest constellations go first.
 - It reads the name of each tool call, the file path an edit or read names, and whether a Bash or PowerShell command looks like a test run. Files in `node_modules`, `.git`, `dist`, `build`, `.next`, `target`, `.venv` and `__pycache__` are left out.
 - It never reads file contents, your prompts or Claude's replies, and it sends nothing anywhere.
-- `/constellation reset` deletes the current project's sky.
+- `/constellation reset` deletes the current project's sky; `/constellation forget` deletes everything it stored.
 
 ## Known limits
 
 - A session has one theme. Another theme mod replaces this one, and setting this one replaces the other.
-- `/constellation off` clears whichever theme stands, not only this one.
+- `/constellation off` clears whichever theme stands, not only this one. `/constellation forget` clears it only while the sky is on.
 - With reduced motion turned on in your system, the sky shows finished, with no ignition, line drawing, twinkle or meteor.
 - Parts of the sky lie under the chat and the side panels by design. Clusters are scattered across the whole window, leaning to the sides, and the panels frost what is under them.
 

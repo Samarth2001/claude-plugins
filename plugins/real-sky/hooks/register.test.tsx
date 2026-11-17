@@ -74,6 +74,7 @@ function engine(on: On, w: World, now = at(12)) {
     w.store.delete(e.key)
     return { value: undefined } as never
   })
+  on('store.keys', () => ({ value: [...w.store.keys()] }) as never)
   on('tool.call', () =>
     (w.tools === 'deny' ? { deny: 'no' } : w.tools === 'error' ? { isError: true, result: 'failed', text: 'failed' } : { result: {} }) as never,
   )
@@ -305,6 +306,12 @@ test('/real-sky answers in the almanac voice, and its words do as documented', a
 
   expect(await run('rainbow')).toStartWith('Try /real-sky')
   expect(await run('dusk now')).toStartWith('Try /real-sky')
+
+  expect(await run('forget')).toBe('Real Sky forgot what it kept and is off until it loads again.')
+  expect([...w.store.keys()]).toEqual([])
+  expect(w.clears).toBe(2)
+  await run('forget')
+  expect(w.clears).toBe(2) // off already: whatever theme stands is left alone
 })
 
 test('the summary says when this window draws no backdrops', async ($, on) => {

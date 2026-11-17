@@ -128,7 +128,18 @@ async function command($: EngineInterface, args: string): Promise<string> {
     if (isOn) await setTheme($)
     return "This project's sky is cleared."
   }
-  return 'Try /constellation, /constellation off, /constellation on or /constellation reset.'
+  if (word === 'forget') {
+    // Before a removal: everything kept goes, every project's sky included. The theme is cleared only if it is this one's.
+    const wasOn = isOn
+    isOn = false
+    for (const key of await $.store.keys()) await $.store.delete(key)
+    sky = emptySky()
+    delta = emptyDelta()
+    meteorUntil = 0
+    if (wasOn) await $.theme.clear()
+    return 'Constellation forgot every sky it kept and is off until it loads again.'
+  }
+  return 'Try /constellation, /constellation off, /constellation on, /constellation reset or /constellation forget.'
 }
 
 export const register: Register = on => {
@@ -136,8 +147,8 @@ export const register: Register = on => {
     try {
       await $.command.register({
         name: 'constellation',
-        description: 'Your project\'s night sky: a summary, or "off", "on" or "reset"',
-        argumentHint: '[off | on | reset]',
+        description: 'Your project\'s night sky: a summary, or "off", "on", "reset", or "forget" to delete every sky it kept',
+        argumentHint: '[off | on | reset | forget]',
       })
     } catch (error) {
       // A refused command costs the sky nothing.

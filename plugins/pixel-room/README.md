@@ -68,6 +68,9 @@ A test run is a Bash or PowerShell command such as `npm test`, `pytest`, `cargo 
 | `/pixel-room unmute` | Brings the sounds back |
 | `/pixel-room off` | Turns off the room, its card, working line, footer label and sounds, here and in later sessions |
 | `/pixel-room on` | Brings the room back |
+| `/pixel-room forget` | Deletes its three settings and turns it off for this session. Run it before removing the plugin |
+
+To try it beside the other themes and switch between them, install the [`themes`](../themes) picker and run `/themes`.
 
 ## Where it shows
 
@@ -85,7 +88,7 @@ A test run is a Bash or PowerShell command such as `npm test`, `pytest`, `cargo 
 ## Known limits
 
 - A session has one theme. Another theme mod replaces this one, and setting this one replaces the other.
-- `/pixel-room off` clears whichever theme stands, not only this one.
+- `/pixel-room off` clears whichever theme stands, not only this one. `/pixel-room forget` clears it only while the room is on.
 - With reduced motion turned on in your system, the room and the card are still: no rain, no pacing, no breathing, and the clock shows the time the room was last drawn.
 - On a square window the window and the desk move toward the middle. On a tall phone screen the window moves up and the bookcase, the floor light, the clock and the plant shelf are left out, so the window and the desk both fit.
 
