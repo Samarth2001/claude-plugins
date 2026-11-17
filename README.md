@@ -35,6 +35,7 @@ Installed plugins also load in the Claude desktop app (Code tab, local sessions)
 | Plugin | Install id | Type | What it does |
 | --- | --- | --- | --- |
 | [HUD](plugins/hud) | `hud` | mods | A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane |
+| [Constellation](plugins/constellation) | `constellation` | themes | A night sky behind the desktop app that maps your work: every file Claude touches becomes a star, and files edited together join into constellations that build up per project |
 <!-- catalog:end -->
 
 Each plugin has its own README covering what it adds, how to use and configure it, and its changelog. This table is generated from [`marketplace.json`](.claude-plugin/marketplace.json) by `scripts/catalog.mts`.
