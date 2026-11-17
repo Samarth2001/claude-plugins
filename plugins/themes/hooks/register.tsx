@@ -5,13 +5,12 @@ import { drawBand } from './band'
 import type { Actions, View } from './band'
 import { CATALOG, PLUGINS, entriesOf, entryOf } from './catalog'
 import type { Entry } from './catalog'
-import { COMMANDS, activeOf, keepRuns, offs, switchRuns, tilesOf, tryRun } from './plan'
+import { COMMANDS, activeOf, isHeld, keepRuns, offs, switchRuns, tilesOf, turnsOnBy } from './plan'
 import type { Run } from './plan'
 import type { Band, ThemeSettings } from '../types'
 
 const PLUGIN = 'themes'
-// After a start, the themes have each set theirs by then; only then is it clear whether two are on.
-const SETTLE_MS = 3000
+const HELD = 'Held back by the themes picker: another theme is kept.'
 const CLI_TIMEOUT_MS = 180_000
 
 const CLOSED: Band = { isOpen: false, page: -1, picked: null, before: null, confirm: null, isBusy: false, note: null }
@@ -24,10 +23,11 @@ const pending = atom({ plugin: 'themes', key: 'pending' } as const, [] as string
 const settings = atom({ plugin: 'themes', key: 'settings' } as const, {} as ThemeSettings)
 
 // The module's own: what a theme's command printed when the picker ran it (kept out of the transcript),
-// the chain that runs the picker's steps one at a time, and the timer that settles a start.
+// the chain that runs the picker's steps one at a time, and the themes turned on since the module loaded:
+// the picker's own runs and the person's typed `on`. Any other catalog theme is held back while one is kept.
 const said = new Map<string, string | undefined>()
 let queue: Promise<void> = Promise.resolve()
-let settleTimer: { cancel: () => void } | undefined
+const allowed = new Set<string>()
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
 const keyOf = (text: string) =>
@@ -88,6 +88,7 @@ function enqueue($: EngineInterface, work: () => Promise<void>): Promise<void> {
 /** Runs one theme command as the person typing it would, and answers what it printed. */
 async function runOne($: EngineInterface, run: Run): Promise<string | undefined> {
   const key = `${run.command} ${run.args}`
+  if (run.turnsOn !== undefined) allowed.add(run.plugin)
   said.delete(key)
   const out = await $.command.run({ command: run.command, args: run.args })
   const text = said.has(key) ? said.get(key) : out.text
@@ -286,16 +287,12 @@ async function remove($: EngineInterface, id: string): Promise<void> {
   })
 }
 
-/** After a start: where the kept theme and another are both on, the other goes off and the kept one comes back. */
-async function settle($: EngineInterface): Promise<void> {
+/** Whether a theme set or cleared by `plugin` stays out: it would cover the kept theme at a start, unasked. */
+async function held($: EngineInterface, plugin: string): Promise<boolean> {
+  if (!PLUGINS.includes(plugin) || allowed.has(plugin)) return false
   const chosen = entryOf((await $.store.get('chosen')) as string | undefined)
-  if (chosen === undefined) return
-  const found = await look($)
-  if (!found.includes(chosen.plugin)) return
-  const others = offs(await read($, lit), found, chosen.plugin)
-  if (others.length === 0) return
-  const again = keepRuns(chosen, await read($, settings))
-  await runAll($, [...others, ...(again.length > 0 ? again : [tryRun(chosen)])])
+  if (chosen === undefined || chosen.plugin === plugin) return false
+  return isHeld(plugin, chosen, await look($), allowed)
 }
 
 function listText(found: readonly string[], now: string | null): string {
@@ -356,15 +353,14 @@ export const register: Register = on => {
     } catch (error) {
       tell($, 'reading settings', error)
     }
-    settleTimer?.cancel()
-    settleTimer = $.clock.after(SETTLE_MS, () => {
-      enqueue($, () => settle($)).catch(error => tell($, 'settling the theme', error))
-    })
     return next(e)
   })
 
   // Who set the session's theme: the band marks it, and switching turns it off before the next goes on.
+  // A catalog theme nobody turned on this session, set while another is kept, is held back: nothing draws
+  // it and nothing runs, so a start shows the kept theme alone.
   on('theme.set', async ($, e, next) => {
+    if (await held($, next.origin.plugin)) return { value: { isDrawn: false, reason: HELD } }
     const out = await next(e)
     try {
       const plugin = next.origin.plugin
@@ -379,6 +375,8 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('theme.clear', async ($, e, next) => {
+    // A held theme's clear would take the kept theme down with it.
+    if (await held($, next.origin.plugin)) return { value: { isDrawn: false, reason: HELD } }
     const out = await next(e)
     try {
       await update($, active, () => null)
@@ -390,11 +388,16 @@ export const register: Register = on => {
 
   // A theme command the picker ran prints nothing in the transcript; the band says what came of it.
   on('command.run', async ($, e, next) => {
-    const out = await next(e)
     const origin = e.origin as typeof e.origin | undefined
+    if (origin?.kind !== 'plugin' || origin.name !== PLUGIN) {
+      // A theme the person turns on is theirs to see, kept theme or not.
+      const plugin = turnsOnBy(e.command, e.args)
+      if (plugin !== undefined) allowed.add(plugin)
+    }
+    const out = await next(e)
     if (!COMMANDS.includes(e.command)) return out
     if (origin?.kind !== 'plugin' || origin.name !== PLUGIN) {
-      // Typed by the person: an option it sets shows in the band as set.
+      // Typed by the person: an option it sets shows in the band as set, and a typed `on` is let through.
       try {
         await follow($, e.command, e.args)
       } catch (error) {

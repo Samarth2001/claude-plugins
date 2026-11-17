@@ -1,5 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { entryOf } from './catalog'
+import { isHeld, turnsOnBy } from './plan'
 
 const NOW = Date.UTC(2026, 10, 17, 12)
 const SURFACES = ['terminal', 'desktop'] as const
@@ -322,4 +324,36 @@ test("an Anthropic scene is tried for this session, and Keep applies it with the
   expect(w.runs.at(-1)).toBe('/custom-theme night-reef')
   expect(w.store.get('chosen')).toBe('night-reef')
   await ui.unmount()
+})
+
+test('a start with a kept theme runs no theme command, however long it waits', async ($, on) => {
+  const w = world()
+  w.store.set('chosen', 'pixel-room')
+  const clock = engine(on, w)
+  await $.session.start(start)
+  await clock.advance(10_000)
+  expect(w.runs).toEqual([])
+  expect(w.store.get('chosen')).toBe('pixel-room')
+})
+
+test('only the kept theme draws: another catalog theme is held until it is turned on', async () => {
+  const pixel = entryOf('pixel-room')
+  const found = ['constellation', 'real-sky', 'pixel-room']
+  expect(isHeld('constellation', pixel, found, new Set())).toBe(true)
+  expect(isHeld('real-sky', pixel, found, new Set())).toBe(true)
+  expect(isHeld('pixel-room', pixel, found, new Set())).toBe(false)
+  // Turned on by the person or the picker this session.
+  expect(isHeld('real-sky', pixel, found, new Set(['real-sky']))).toBe(false)
+  // Nothing kept, the kept theme not loaded, or a theme outside the catalog: nothing is held.
+  expect(isHeld('real-sky', undefined, found, new Set())).toBe(false)
+  expect(isHeld('real-sky', pixel, ['real-sky'], new Set())).toBe(false)
+  expect(isHeld('someone-else', pixel, found, new Set())).toBe(false)
+})
+
+test("a typed command that turns a theme on names its plugin; an option or off does not", async () => {
+  expect(turnsOnBy('real-sky', 'on')).toBe('real-sky')
+  expect(turnsOnBy('custom-theme', 'night-reef')).toBe('theme-examples')
+  expect(turnsOnBy('custom-theme', 'night-reef session')).toBe('theme-examples')
+  expect(turnsOnBy('real-sky', 'off')).toBeUndefined()
+  expect(turnsOnBy('pixel-room', 'glass clear')).toBeUndefined()
 })
