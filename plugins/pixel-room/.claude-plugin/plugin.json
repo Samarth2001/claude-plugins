@@ -1,0 +1,21 @@
+{
+  "name": "pixel-room",
+  "displayName": "Pixel Room",
+  "version": "0.1.0",
+  "description": "A late-night pixel room behind the desktop app: rain on the window, a lamp that lights at dusk and a cat that sleeps, paces and watches while Claude works, with a room card, spinner and footer in the same voice",
+  "author": { "name": "Samarth Rayar", "url": "https://github.com/Samarth2001" },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/pixel-room",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "theme",
+    "backdrop",
+    "desktop",
+    "pixel-art",
+    "lo-fi",
+    "cat",
+    "sounds"
+  ],
+  "types": "./types/index.d.ts"
+}
