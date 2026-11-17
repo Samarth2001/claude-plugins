@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On, PaneOpenArgs, ThemeSetArgs } from 'claude-code'
 
-import { LOOKS } from './look'
+import { LOOKS, veil } from './look'
 
 /** A local clock reading on the test day, whatever this machine's time zone. */
 const at = (hour: number, minute = 0) => new Date(2026, 10, 17, hour, minute).getTime()
@@ -74,6 +74,7 @@ function engine(on: On, w: World, now = at(12)) {
     w.store.delete(e.key)
     return { value: undefined } as never
   })
+  on('store.keys', () => ({ value: [...w.store.keys()] }) as never)
   on('tool.call', () =>
     (w.tools === 'deny' ? { deny: 'no' } : w.tools === 'error' ? { isError: true, result: 'failed', text: 'failed' } : { result: {} }) as never,
   )
@@ -128,7 +129,9 @@ test('session.start at noon sets the day theme once: light colors, a sky scene a
   const set = w.themes[0]
   expect(set?.colors?.label).toBe('Real Sky day')
   expect(set?.overrideColorScheme).toBe('light')
-  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: LOOKS.day.glass })
+  expect(set?.backdrop).toMatchObject({ scene: 'sky-a', glass: { blur: 4, tint: '#e7eaec', opacity: 0.26 } })
+  expect(veil(LOOKS.day.glass, 'clear')).toBe(false)
+  expect(veil(LOOKS.day.glass, 'frosted')).toBe(LOOKS.day.glass)
 })
 
 test('late evening is night, with dark colors', async ($, on) => {
@@ -305,6 +308,12 @@ test('/real-sky answers in the almanac voice, and its words do as documented', a
 
   expect(await run('rainbow')).toStartWith('Try /real-sky')
   expect(await run('dusk now')).toStartWith('Try /real-sky')
+
+  expect(await run('forget')).toBe('Real Sky forgot what it kept and is off until it loads again.')
+  expect([...w.store.keys()]).toEqual([])
+  expect(w.clears).toBe(2)
+  await run('forget')
+  expect(w.clears).toBe(2) // off already: whatever theme stands is left alone
 })
 
 test('the summary says when this window draws no backdrops', async ($, on) => {

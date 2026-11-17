@@ -11,6 +11,7 @@ All notable changes to constellation. The format follows [Keep a Changelog](http
 - Nearby files edited in the same turn join into a constellation, its lines stopping short of the stars as in a star atlas. Files far apart form separate figures rather than one long line, figures never cross, and a lone far file stays unlinked. The five newest are named under their largest figure after their folder, and the six brightest stars carry their file names.
 - The sky changes at the end of each turn: new stars ignite, new lines draw themselves, then it rests. A turn whose tests passed ends with a meteor. Reduced motion shows the sky finished and still.
 - One sky per project, kept in the plugin's store across sessions, up to 400 stars and 48 constellations. Only file paths and counts are stored.
-- `/constellation` summarizes the sky; `/constellation off`, `on` and `reset` turn it off, bring it back and clear this project's sky.
+- `/constellation glass clear`, `soft` or `frosted` sets how much veil sits between the sky and the chat. Soft is the default.
+- `/constellation` summarizes the sky; `/constellation off`, `on` and `reset` turn it off, bring it back and clear this project's sky; `/constellation forget` deletes everything it stored, for a clean removal.
 
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/constellation--v0.1.0

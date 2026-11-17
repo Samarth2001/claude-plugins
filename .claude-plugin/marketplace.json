@@ -30,6 +30,13 @@
       "description": "A lo-fi pixel desk scene behind the desktop app with rain on the window and a cat that sleeps until Claude works, a lamp that comes on at night and soft sounds on finish or failure",
       "category": "themes",
       "tags": ["mod", "theme", "backdrop", "desktop"]
+    },
+    {
+      "name": "themes",
+      "source": "./plugins/themes",
+      "description": "A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button",
+      "category": "mods",
+      "tags": ["mod", "theme", "picker", "backdrop"]
     }
   ],
   "renames": { "buddy": "hud" }
