@@ -11,7 +11,7 @@ const BAND = (isWorking: boolean, bodyColumns = 160, maxRows = 10) =>
   ({
     plugin: 'hud',
     component: 'AbovePrompt',
-    props: { hasSurvey: false, isWorking, maxRows, bodyColumns, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+    props: { hasSurvey: false, isCollapsed: false, isWorking, maxRows, bodyColumns, scroll: { offset: 0, bodyRows: 10 }, view: {} },
   }) as const
 
 const PANE = {
