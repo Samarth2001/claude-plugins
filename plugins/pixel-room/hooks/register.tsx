@@ -2,8 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ThemeResult, Timer } from 'claude-code'
 
 import type { RoomCard } from '../types'
-import { buildBand } from './band'
-import { buildCard, buildGlance } from './card'
+import { bandSize, buildBand } from './band'
+import { CARD_SIZE, GLANCE_SIZE, buildCard, buildGlance } from './card'
 import { COLORS, GLASS_WORDS, glassFor } from './look'
 import type { Glass } from './look'
 import type { Cat, Flourish, LocalDate, Monitor, Notes, Phase, Plant, RoomView, SceneInput, Season, Weather } from './model'
@@ -668,7 +668,9 @@ export const register: Register = on => {
       return <Text dimColor>{TITLE}</Text>
     }
     const { Svg } = $.ui.resolve(e)
-    return <Svg isInteractive source={buildBand(view, e.props.bodyColumns)} alt={bandAlt(view)} />
+    // Sized in CSS pixels: an Svg drawn without a size gets the app's default box, far taller than the strip.
+    const size = bandSize(e.props.bodyColumns)
+    return <Svg isInteractive source={buildBand(view, e.props.bodyColumns)} alt={bandAlt(view)} width={size.width} height={size.height} />
   })
 
   // The working line speaks of the room: one phrase a turn for each thing the turn does.
@@ -713,14 +715,14 @@ export const register: Register = on => {
     if (e.props.placement === 'widget') {
       return (
         <Box flexDirection="column">
-          <Svg isInteractive source={buildGlance(view)} alt={`The cat, ${caption(view.cat)}`} />
+          <Svg isInteractive source={buildGlance(view)} alt={`The cat, ${caption(view.cat)}`} width={GLANCE_SIZE.width} height={GLANCE_SIZE.height} />
           <Text dimColor>{caption(view.cat)}</Text>
         </Box>
       )
     }
     return (
       <Box flexDirection="column">
-        <Svg isInteractive source={buildCard(view)} alt={`The cat, ${caption(view.cat)}; ${tally}`} />
+        <Svg isInteractive source={buildCard(view)} alt={`The cat, ${caption(view.cat)}; ${tally}`} width={CARD_SIZE.width} height={CARD_SIZE.height} />
         <Text>{words}</Text>
         <Text dimColor>{tally}</Text>
       </Box>

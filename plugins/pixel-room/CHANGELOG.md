@@ -2,6 +2,12 @@
 
 All notable changes to pixel-room. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pixel-room--v<version>`.
 
+## [0.2.2] - 2026-11-18
+
+### Fixed
+
+- The band above the prompt is drawn at its full size, a 32-pixel strip as wide as the band. It had no size of its own, so the desktop app shrank it into a small strip inside a tall empty box. The room card and its widget get their sizes the same way.
+
 ## [0.2.1] - 2026-11-18
 
 ### Fixed
@@ -73,6 +79,7 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.
 
+[0.2.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.2
 [0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.1
 [0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.0
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.1.0

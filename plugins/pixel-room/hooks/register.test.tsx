@@ -367,13 +367,17 @@ test('the card draws the cat and the session, in full docked and as a glance in 
   await $.tool.call(bash('npm test'))
 
   const ui = await $.ui.mount({ ...PANE('dock'), surface: 'desktop' })
-  expect(String((await ui.find({ type: 'Svg' }))?.props.alt)).toBe('The cat, watching you work; 0 cups · plant perky')
+  const card = await ui.find({ type: 'Svg' })
+  expect(String(card?.props.alt)).toBe('The cat, watching you work; 0 cups · plant perky')
+  expect([card?.props.width, card?.props.height]).toEqual([228, 180])
   expect((await ui.find({ type: 'Text', text: /The cat is/ }))?.text).toBe('The cat is watching you work.')
   await ui.unmount()
 
   await $.turn.complete(done)
   const glance = await $.ui.mount({ ...PANE('widget'), surface: 'desktop' })
-  expect(String((await glance.find({ type: 'Svg' }))?.props.source)).toContain('viewBox="0 0 48 34"')
+  const peek = await glance.find({ type: 'Svg' })
+  expect(String(peek?.props.source)).toContain('viewBox="0 0 48 34"')
+  expect([peek?.props.width, peek?.props.height]).toEqual([144, 102])
   expect((await glance.find({ type: 'Text' }))?.text).toBe('asleep on the sill')
   await glance.unmount()
 
@@ -541,6 +545,11 @@ test('the band draws the room as a strip on desktop and mobile', async ($, on) =
     const svg = await ui.find({ type: 'Svg' })
     expect(String(svg?.props.source)).toStartWith('<svg')
     expect(svg?.props.isInteractive).toBe(true)
+    // Drawn at its own size, never the app's default box.
+    const columns = BAND().props.bodyColumns
+    expect(svg?.props.height).toBe(32)
+    expect(svg?.props.width).toBe(Math.min(640, Math.max(120, Math.round(columns * 3.75))) * 2)
+    expect(String(svg?.props.source)).toContain(`width="${svg?.props.width}" height="32"`)
     expect(String(svg?.props.alt)).toBe('A strip of the pixel room: rain at the window, the cat asleep on the sill')
     await ui.unmount()
   }
