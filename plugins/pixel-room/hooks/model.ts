@@ -73,8 +73,8 @@ export type RoomView = {
   isWorking: boolean
   moths: number
   notes: Notes
-  /** Pets this session; a change plays the hearts once. */
-  pets: number
+  /** A one-shot the band plays once while it is set: hearts after a pet, a paper plane after a push. */
+  flourish: Flourish
 }
 
 export const NO_NOTES: Notes = { open: 0, active: 0, done: 0 }

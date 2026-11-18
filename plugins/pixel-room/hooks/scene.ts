@@ -45,7 +45,7 @@ export function buildScene(input: SceneInput, time: Clock): string {
     `<defs>${defs()}</defs>` +
     `<g transform="scale(${PX})">` +
     shellPart(input) +
-    `<g class="pr-l">${windowPart(input)}${sillCat(input)}</g>` +
+    `<g class="pr-l">${windowPart(input, time)}${sillCat(input)}</g>` +
     `<g class="pr-r">${deskPart(input, time)}${floorCat(input)}</g>` +
     tint(input.phase) +
     `</g></svg>`

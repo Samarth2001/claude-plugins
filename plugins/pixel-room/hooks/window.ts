@@ -5,7 +5,7 @@
 
 import { FLOOR, P, pat } from './paint'
 import { Layer, seeded } from './pixels'
-import type { Phase, SceneInput } from './model'
+import type { Clock, Phase, SceneInput } from './model'
 
 /** The glass, in art pixels. */
 export const GLASS = { x: 24, y: 28, w: 72, h: 90 }
@@ -219,7 +219,8 @@ function floorLight(phase: Phase): string {
 }
 
 /** Everything of the window wall but the cat. */
-export function windowPart(input: SceneInput): string {
+export function windowPart(input: SceneInput, time: Clock): string {
+  void time
   const g = GLASS
   return (
     `<defs><clipPath id="prglass"><rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}"/></clipPath></defs>` +
