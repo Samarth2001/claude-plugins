@@ -643,9 +643,15 @@ export const register: Register = on => {
   })
 
   // A click on the room pets the cat. Only the plugin that set the theme hears it.
-  on('ui.pointer', async ($, e, next) => {
+  // Hooked through `ui.*` on the backdrop, not by name: a Claude Code from before clicks reached a
+  // backdrop (2.1.326) knows no `ui.pointer` and would refuse the whole module, so there the room
+  // loads without it and `/pixel-room pet` still pets.
+  on('ui.*', { component: 'Backdrop' }, async ($, e, next) => {
+    // A plain string, so the types of a build without the event read it too.
+    if ((next.event as string) !== 'ui.pointer') return next(e)
     try {
-      if (isOn && (SCENES as readonly string[]).includes(e.scene)) await pet($)
+      const scene = (e as { scene?: unknown }).scene
+      if (isOn && typeof scene === 'string' && (SCENES as readonly string[]).includes(scene)) await pet($)
     } catch (error) {
       tell($, 'a pet', error)
     }

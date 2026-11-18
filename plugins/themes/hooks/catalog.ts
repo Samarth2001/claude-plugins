@@ -14,7 +14,7 @@ export type Option =
   | { kind: 'action'; name: string; label: string; args: string; confirm?: string }
 
 /** A small picture for the tile: drawn art, or a colour swatch where the picker has no art of its own. */
-export type Thumbnail = { kind: 'art'; art: 'constellation' | 'real-sky' | 'pixel-room' } | { kind: 'swatch'; tint: string; window: 'light' | 'dark' }
+export type Thumbnail = { kind: 'art'; art: 'pixel-room' } | { kind: 'swatch'; tint: string; window: 'light' | 'dark' }
 
 export type Entry = {
   /** What `/themes <id>` takes, unique across the catalog. */
@@ -61,40 +61,6 @@ const GLASS: Option = {
 }
 
 const OURS: readonly Entry[] = [
-  {
-    id: 'constellation',
-    title: 'Constellation',
-    ...SAMARTH,
-    plugin: 'constellation',
-    command: 'constellation',
-    on: 'on',
-    off: 'off',
-    forget: 'forget',
-    options: [GLASS, { kind: 'action', name: 'reset', label: 'Reset sky', args: 'reset', confirm: "Clear this project's stars?" }],
-    thumbnail: { kind: 'art', art: 'constellation' },
-  },
-  {
-    id: 'real-sky',
-    title: 'Real Sky',
-    ...SAMARTH,
-    plugin: 'real-sky',
-    command: 'real-sky',
-    on: 'on',
-    off: 'off',
-    forget: 'forget',
-    options: [
-      {
-        kind: 'choice',
-        name: 'phase',
-        label: 'Sky',
-        initial: 'auto',
-        values: ['auto', 'dawn', 'day', 'dusk', 'night'].map(phase => ({ value: phase, label: phase, args: phase })),
-      },
-      GLASS,
-      onOff('almanac', 'Almanac', word => `almanac ${word}`),
-    ],
-    thumbnail: { kind: 'art', art: 'real-sky' },
-  },
   {
     id: 'pixel-room',
     title: 'Pixel Room',

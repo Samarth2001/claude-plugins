@@ -2,6 +2,12 @@
 
 All notable changes to pixel-room. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pixel-room--v<version>`.
 
+## [0.2.1] - 2026-11-18
+
+### Fixed
+
+- The room loads again on Claude Code 2.1.324 and 2.1.325. Those builds know no backdrop clicks, and 0.2.0's click hook made them refuse the whole plugin, so the room, the band and `/pixel-room` were missing. There the cat is petted with `/pixel-room pet`; from 2.1.326 a click on the room still pets it.
+
 ## [0.2.0] - 2026-11-18
 
 ### Added
@@ -67,5 +73,6 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.
 
+[0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.1
 [0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.0
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.1.0
