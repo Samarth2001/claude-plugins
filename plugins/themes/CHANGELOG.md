@@ -2,12 +2,6 @@
 
 All notable changes to themes. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `themes--v<version>`.
 
-## [0.2.0] - 2026-11-18
-
-### Added
-
-- Pixel Room's weather and band in the picker: the weather is today's own or one pinned (rain, drizzle, snow, fog or clear), and the band above the prompt is on or off. Both need Pixel Room 0.2.0.
-
 ## [0.1.1] - 2026-11-17
 
 ### Fixed
@@ -26,6 +20,5 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.
 - At a session's start, where the kept theme is on alongside another, the other is turned off.
 
-[0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.0
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.0

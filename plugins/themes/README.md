@@ -25,7 +25,7 @@ Every theme stays its own plugin. `themes` doesn't list them as dependencies: Cl
 
 - **The strip.** One tile per theme with its title and a faint "by Samarth" or "by Anthropic". In the desktop and mobile apps each tile has a small picture; in the terminal it is one line of text with a coloured mark. ✓ marks the theme that is on. When the tiles don't fit the width, ‹ and › page through them.
 - **Pick a tile** to try the theme live. The theme that was on goes off first, so two themes never run at once.
-- **Options** for the picked theme sit under the strip and run that theme's own command as soon as you change them. Real Sky: the part of the day and the almanac card. Pixel Room: the weather (today's own, or one pinned), the band above the prompt, the card and the sound. Constellation: Reset sky, after a yes. Anthropic's scenes: whether Keep applies the scene to this project or this session only.
+- **Options** for the picked theme sit under the strip and run that theme's own command as soon as you change them. Real Sky: the part of the day and the almanac card. Pixel Room: the card and the sound. Constellation: Reset sky, after a yes. Anthropic's scenes: whether Keep applies the scene to this project or this session only.
 - **Keep** keeps the picked theme and closes the band. **Cancel** puts back the theme that was on when you opened it and closes the band. Esc returns the keys to the prompt but leaves the band open.
 - **Install** appears on a theme you don't have, **Remove** on one you do, after a yes. Anthropic's scenes show as one tile until their plugin is installed.
 
@@ -49,7 +49,7 @@ The picker draws no theme itself. It runs each theme's own slash command, the sa
 | Try or keep one of Samarth's themes | `/<theme> off` for the theme that was on, then `/<theme> on` |
 | Try an Anthropic scene | `/<theme> off` for the theme that was on, then `/custom-theme <scene> session` |
 | Keep an Anthropic scene | `/custom-theme <scene>` for this project, or `/custom-theme <scene> session` |
-| Change an option | The theme's command with that word: `/real-sky dusk`, `/real-sky almanac off`, `/pixel-room weather snow`, `/pixel-room band off`, `/pixel-room card off`, `/pixel-room mute`, `/constellation reset` |
+| Change an option | The theme's command with that word: `/real-sky dusk`, `/real-sky almanac off`, `/pixel-room card off`, `/pixel-room mute`, `/constellation reset` |
 | Install | `claude plugin install <plugin>@<marketplace>` on your machine |
 | Remove | `/<theme> off` if it is on, then `/<theme> forget` for Samarth's themes, then `claude plugin uninstall <plugin>@<marketplace>` |
 

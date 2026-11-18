@@ -105,18 +105,7 @@ const OURS: readonly Entry[] = [
     off: 'off',
     forget: 'forget',
     options: [
-      {
-        kind: 'choice',
-        name: 'weather',
-        label: 'Weather',
-        initial: 'today',
-        values: [
-          { value: 'today', label: 'today', args: 'weather auto' },
-          ...['rain', 'drizzle', 'snow', 'fog', 'clear'].map(word => ({ value: word, label: word, args: `weather ${word}` })),
-        ],
-      },
       GLASS,
-      onOff('band', 'Band', word => `band ${word}`),
       onOff('card', 'Card', word => `card ${word}`),
       {
         kind: 'choice',

@@ -1,7 +1,7 @@
 {
   "name": "themes",
   "displayName": "Themes",
-  "version": "0.2.0",
+  "version": "0.1.1",
   "description": "A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button",
   "author": {
     "name": "Samarth Rayar",
