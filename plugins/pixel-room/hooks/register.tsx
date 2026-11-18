@@ -2,14 +2,12 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ThemeResult, Timer } from 'claude-code'
 
 import type { RoomCard } from '../types'
-import { bandSize, buildBand } from './band'
 import { CARD_SIZE, GLANCE_SIZE, buildCard, buildGlance } from './card'
 import { COLORS, GLASS_WORDS, glassFor } from './look'
 import type { Glass } from './look'
 import type { Cat, Flourish, LocalDate, Monitor, Notes, Phase, Plant, RoomView, SceneInput, Season, Weather } from './model'
 import { NO_NOTES } from './model'
 import {
-  bandAlt,
   caption,
   describeRoom,
   doneWord,
@@ -51,7 +49,7 @@ const PUSH = /\bgit\b[^;&|]*\bpush\b/
 const UNDRAWN = "This window doesn't draw backdrops; the room shows in the desktop and mobile apps."
 const DARK = 'The room is dark: /pixel-room on lights it again.'
 const HELP =
-  'Try /pixel-room, or off, on, mute, unmute, pet, glass clear|soft|frosted, weather [rain|drizzle|snow|fog|clear|auto], band off|on, card, card off, card on or forget.'
+  'Try /pixel-room, or off, on, mute, unmute, pet, glass clear|soft|frosted, weather [rain|drizzle|snow|fog|clear|auto], card, card off, card on or forget.'
 
 const IDLE: RoomCard = {
   cat: 'asleep',
@@ -68,7 +66,7 @@ const IDLE: RoomCard = {
 // The contract's RoomCard repeats model.ts's RoomView: this line stops compiling if the two part.
 const isSameView: [RoomCard, RoomView] extends [RoomView, RoomCard] ? true : false = true
 void isSameView
-// What the band and the card draw; tagged so a value an older version stored is read as IDLE.
+// What the card draws; tagged so a value an older version stored is read as IDLE.
 const card = atom({ plugin: 'pixel-room', key: 'card' } as const, IDLE, { shape: 'card-2' })
 
 // The module's own state: a reload starts it over and session.start runs again.
@@ -96,13 +94,11 @@ let lastPet: number | undefined
 let flip = 0
 let isOn = true
 let isMuted = false
-let isCardOn = true
-let isBandOn = true
 let glass: Glass = 'soft'
 let lastSet: ThemeResult | undefined
 // The scene the backdrop last drew, flourish aside, so a redraw happens only when something in it moved.
 let drawnKey: string | undefined
-// The view the band and card last read, so an unchanged one writes nothing.
+// The view the card last read, so an unchanged one writes nothing.
 let syncedKey: string | undefined
 let soonTimer: Timer | undefined
 let outcome = freshOutcome()
@@ -114,8 +110,6 @@ let plant: Plant = 'neutral'
 // What has already moved the cat this turn, so each moves it once at most.
 let hasWatched = false
 let hasStartled = false
-// Whether the card was offered as a widget this session.
-let hasOffered = false
 // The working line's phrase for each mode, kept for the turn.
 const phrases = new Map<string, string>()
 // The last scene built, for a second window or a resize that asks again for the same room.
@@ -160,7 +154,7 @@ function sceneInput(): SceneInput {
   }
 }
 
-/** The band's and card's view: a stretch is over by the time anyone looks, so it shows the cat asleep. */
+/** The card's view: a stretch is over by the time anyone looks, so it shows the cat asleep. */
 function roomView(): RoomCard {
   const now = sceneInput()
   return {
@@ -198,7 +192,7 @@ async function readSky($: EngineInterface): Promise<number> {
   return now
 }
 
-/** Hands the band and the card the room as it stands, when it changed. */
+/** Hands the card the room as it stands, when it changed. */
 async function sync($: EngineInterface): Promise<void> {
   const view = roomView()
   const key = JSON.stringify(view)
@@ -226,7 +220,7 @@ async function redraw($: EngineInterface): Promise<void> {
   if (isOn) await setTheme($)
 }
 
-/** Redraws the backdrop when something in the scene moved, and hands the band and card the room. */
+/** Redraws the backdrop when something in the scene moved, and hands the card the room. */
 async function refresh($: EngineInterface): Promise<void> {
   if (sceneKey() !== drawnKey) await redraw($)
   await sync($)
@@ -263,7 +257,7 @@ async function play($: EngineInterface, next: Flourish): Promise<void> {
   flourishTimer = $.clock.after(FLOURISH_MS, () => {
     flourishTimer = undefined
     flourish = 'none'
-    // The backdrop's one-shot has already come to rest; only the band and card are told.
+    // The backdrop's one-shot has already come to rest; only the card is told.
     sync($).catch(error => tell($, 'a flourish', error))
   })
 }
@@ -287,13 +281,6 @@ async function scene($: EngineInterface): Promise<{ source: string; alt: string 
     built = { key, source: buildScene(input, { hour: at.getHours(), minute: at.getMinutes(), second: at.getSeconds() }) }
   }
   return { source: built.source, alt: sceneAlt(input) }
-}
-
-/** Opens the card as a small widget beside the chat, once a session, where the desktop app draws one and the band is put away. */
-function offerCard($: EngineInterface): void {
-  if (hasOffered || !isOn || !isCardOn || isBandOn) return
-  hasOffered = true
-  $.ui.open({ id: PANE, title: TITLE, placement: 'widget' }).catch(error => tell($, 'the card', error))
 }
 
 function cups(count: number): string {
@@ -336,7 +323,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
     await $.theme.clear()
     await $.ui.close({ id: PANE })
     $.ui.invalidate('ui.render')
-    return 'Pixel Room is off, its band, card and sounds too. /pixel-room on brings it back.'
+    return 'Pixel Room is off, its card and sounds too. /pixel-room on brings it back.'
   }
   if (word === 'on') {
     isOn = true
@@ -353,7 +340,6 @@ async function command($: EngineInterface, args: string): Promise<string> {
     isOn = false
     glass = 'soft'
     pinned = undefined
-    isBandOn = true
     for (const key of await $.store.keys()) await $.store.delete(key)
     if (wasOn) await $.theme.clear()
     await $.ui.close({ id: PANE })
@@ -389,38 +375,17 @@ async function command($: EngineInterface, args: string): Promise<string> {
     await refresh($)
     return weatherCommand($, word.slice(8))
   }
-  if (word === 'band') {
-    return isBandOn
-      ? 'The band above the prompt is on. /pixel-room band off puts it away.'
-      : 'The band above the prompt is put away. /pixel-room band on brings it back.'
-  }
-  if (word === 'band off') {
-    isBandOn = false
-    await $.store.set('band', false)
-    $.ui.invalidate('ui.render')
-    return 'The band above the prompt is put away, here and in later sessions. /pixel-room band on brings it back, and /pixel-room card shows the room beside the chat.'
-  }
-  if (word === 'band on') {
-    isBandOn = true
-    await $.store.delete('band')
-    $.ui.invalidate('ui.render')
-    return 'The band is back above the prompt.'
-  }
   if (word === 'card') {
     const opened = await $.ui.open({ id: PANE, title: TITLE })
     return opened.isPlaced ? 'The room card is open.' : 'The room card opens once a window can show it.'
   }
   if (word === 'card off') {
-    isCardOn = false
-    await $.store.set('card', false)
     await $.ui.close({ id: PANE })
-    return 'The room card is put away, here and in later sessions. /pixel-room card on brings it back.'
+    return 'The room card is put away. /pixel-room card brings it back.'
   }
   if (word === 'card on') {
-    isCardOn = true
-    await $.store.delete('card')
-    await $.ui.open({ id: PANE, title: TITLE, placement: 'widget' })
-    return 'The room card is back.'
+    const opened = await $.ui.open({ id: PANE, title: TITLE, placement: 'widget' })
+    return opened.isPlaced ? 'The room card is open.' : 'The room card opens once a window can show it.'
   }
   return HELP
 }
@@ -462,8 +427,8 @@ export const register: Register = on => {
       await $.command.register({
         name: 'pixel-room',
         description:
-          'The pixel room: how it stands, or "pet", "weather [rain|drizzle|snow|fog|clear|auto]", "band off|on", "off", "on", "mute", "unmute", "glass clear|soft|frosted", "card", "card off", "card on", or "forget" to delete what it kept',
-        argumentHint: '[pet | weather [rain|drizzle|snow|fog|clear|auto] | band [off | on] | off | on | mute | unmute | glass clear|soft|frosted | card [off | on] | forget]',
+          'The pixel room: how it stands, or "pet", "weather [rain|drizzle|snow|fog|clear|auto]", "off", "on", "mute", "unmute", "glass clear|soft|frosted", "card", "card off", "card on", or "forget" to delete what it kept',
+        argumentHint: '[pet | weather [rain|drizzle|snow|fog|clear|auto] | off | on | mute | unmute | glass clear|soft|frosted | card [off | on] | forget]',
       })
     } catch (error) {
       // A refused command costs the room nothing.
@@ -472,8 +437,8 @@ export const register: Register = on => {
     try {
       isOn = (await $.store.get('enabled')) !== false
       isMuted = (await $.store.get('muted')) === true
-      isCardOn = (await $.store.get('card')) !== false
-      isBandOn = (await $.store.get('band')) !== false
+      // Settings of earlier versions with nothing left to set: the band, and the card opening by itself.
+      for (const retired of ['band', 'card']) if ((await $.store.get(retired)) !== undefined) await $.store.delete(retired)
       const kept = await $.store.get('glass')
       glass = GLASS_WORDS.includes(kept as Glass) ? (kept as Glass) : 'soft'
       const sky = await $.store.get('weather')
@@ -481,7 +446,6 @@ export const register: Register = on => {
       await readSky($)
       if (isOn) await setTheme($)
       await sync($)
-      if (e.surface === 'desktop') offerCard($)
     } catch (error) {
       tell($, 'session.start', error)
     }
@@ -499,16 +463,6 @@ export const register: Register = on => {
       })
     } catch (error) {
       tell($, 'the clock', error)
-    }
-    return next(e)
-  })
-
-  // The desktop app often joins after the session starts: offer the card then.
-  on('session.attach', { surface: 'desktop' }, ($, e, next) => {
-    try {
-      offerCard($)
-    } catch (error) {
-      tell($, 'session.attach', error)
     }
     return next(e)
   })
@@ -656,21 +610,6 @@ export const register: Register = on => {
       tell($, 'a pet', error)
     }
     return next(e)
-  })
-
-  // The band above the prompt: a slim strip of the room, in the apps that draw pictures.
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.surface !== 'desktop' && e.surface !== 'mobile') return next(e)
-    if (!isOn || !isBandOn || e.props.hasSurvey || e.props.maxRows < 1) return next(e)
-    const view = await read($, card)
-    if (e.props.isCollapsed) {
-      const { Text } = $.ui.resolve(e)
-      return <Text dimColor>{TITLE}</Text>
-    }
-    const { Svg } = $.ui.resolve(e)
-    // Sized in CSS pixels: an Svg drawn without a size gets the app's default box, far taller than the strip.
-    const size = bandSize(e.props.bodyColumns)
-    return <Svg isInteractive source={buildBand(view, e.props.bodyColumns)} alt={bandAlt(view)} width={size.width} height={size.height} />
   })
 
   // The working line speaks of the room: one phrase a turn for each thing the turn does.

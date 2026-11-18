@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 import type { Notes, Phase, Weather } from './model'
 import { NO_NOTES } from './model'
-import { bandAlt, caption, describeRoom, doneWord, freshOutcome, isTestCommand, modeLabel, moonWords, noteCall, sceneAlt, soundFor, spinnerPhrase, weatherReport } from './room'
+import { caption, describeRoom, doneWord, freshOutcome, isTestCommand, modeLabel, moonWords, noteCall, sceneAlt, soundFor, spinnerPhrase, weatherReport } from './room'
 import { quietScene } from './scene'
 
 const FULL = 0.5
@@ -105,9 +105,6 @@ test('the captions read naturally for every state', () => {
     'A pixel room at night, the desk lamp lit: a full moon in a clear sky and a cat asleep on the sill, purring',
   )
   expect(sceneAlt(quietScene('pacing', 'dawn', { weather: 'snow' }))).toContain('at dawn, the desk lamp still lit: snow falling outside')
-  const view = { cat: 'asleep', phase: 'night', weather: 'fog', moon: 0.5, turns: 0, plant: 'neutral', isWorking: false, moths: 0, notes: NO_NOTES, flourish: 'none' } as const
-  expect(bandAlt(view)).toBe('A strip of the pixel room: fog at the window, the cat asleep on the sill')
-  expect(bandAlt({ ...view, weather: 'clear', phase: 'dusk' })).toBe('A strip of the pixel room: a clear dusk, the cat asleep on the sill')
 })
 
 test("a turn's closing line takes one of the room's words, the same for the same line", () => {

@@ -1,5 +1,5 @@
-// What the room is drawn from: the shared vocabulary of the scene, the band
-// and the card. Plain data, no logic. register.tsx gathers a SceneInput from
+// What the room is drawn from: the shared vocabulary of the scene and the
+// card. Plain data, no logic. register.tsx gathers a SceneInput from
 // the clock and Claude's events; every drawing module reads it and nothing
 // else, so each stays pure and deterministic for its input.
 
@@ -60,7 +60,7 @@ export type SceneInput = {
 
 export type Plant = 'perky' | 'neutral' | 'droopy'
 
-/** What the band above the prompt and the room card draw: held in $.state for the session. */
+/** What the room card draws: held in $.state for the session. */
 export type RoomView = {
   cat: Cat
   phase: Phase
@@ -73,7 +73,7 @@ export type RoomView = {
   isWorking: boolean
   moths: number
   notes: Notes
-  /** A one-shot the band plays once while it is set: hearts after a pet, a paper plane after a push. */
+  /** A one-shot the card plays once while it is set: hearts after a pet, a paper plane after a push. */
   flourish: Flourish
 }
 

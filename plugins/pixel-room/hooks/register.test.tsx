@@ -342,12 +342,12 @@ test('the footer carries one quiet label, on the terminal and the desktop', asyn
   }
 })
 
-test('with the band put away, the card opens as a widget on the desktop, once', async ($, on) => {
-  const w = world({ band: false })
+test('the card never opens by itself, on the desktop or the terminal', async ($, on) => {
+  const w = world()
   engine(on, w)
   await $.session.start(start)
   await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
-  expect(w.opens).toEqual([{ id: 'pixel-room', title: 'Pixel Room', placement: 'widget' }])
+  expect(w.opens).toHaveLength(0)
 })
 
 test('a terminal session opens no card until asked', async ($, on) => {
@@ -421,13 +421,13 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(await run($, 'unmute')).toBe('Sounds are on.')
   expect(w.store.has('muted')).toBe(false)
 
-  expect(await run($, 'card off')).toBe('The room card is put away, here and in later sessions. /pixel-room card on brings it back.')
-  expect(w.store.get('card')).toBe(false)
+  expect(await run($, 'card off')).toBe('The room card is put away. /pixel-room card brings it back.')
   expect(w.closes).toEqual(['pixel-room'])
-  expect(await run($, 'card  ON')).toBe('The room card is back.')
+  expect(await run($, 'card  ON')).toBe('The room card is open.')
+  expect(w.opens.at(-1)).toEqual({ id: 'pixel-room', title: 'Pixel Room', placement: 'widget' })
   expect(w.store.has('card')).toBe(false)
 
-  expect(await run($, 'off')).toBe('Pixel Room is off, its band, card and sounds too. /pixel-room on brings it back.')
+  expect(await run($, 'off')).toBe('Pixel Room is off, its card and sounds too. /pixel-room on brings it back.')
   expect(w.clears).toBe(1)
   expect(w.store.get('enabled')).toBe(false)
   const before = w.themes.length
@@ -443,7 +443,7 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(w.themes).toHaveLength(before + 1)
 
   expect(await run($, 'meow')).toBe(
-    'Try /pixel-room, or off, on, mute, unmute, pet, glass clear|soft|frosted, weather [rain|drizzle|snow|fog|clear|auto], band off|on, card, card off, card on or forget.',
+    'Try /pixel-room, or off, on, mute, unmute, pet, glass clear|soft|frosted, weather [rain|drizzle|snow|fog|clear|auto], card, card off, card on or forget.',
   )
 })
 
@@ -469,8 +469,8 @@ test('the summary says when this window draws no backdrops', async ($, on) => {
   expect(await run($, '')).toContain("This window doesn't draw backdrops; the room shows in the desktop and mobile apps.")
 })
 
-test('a later session that was turned off, muted or put its card away stays so', async ($, on) => {
-  const w = world({ enabled: false, muted: true, card: false })
+test('a later session that was turned off or muted stays so', async ($, on) => {
+  const w = world({ enabled: false, muted: true })
   const clock = engine(on, w)
   await $.session.start(start)
   expect(w.themes).toHaveLength(0)
@@ -479,6 +479,14 @@ test('a later session that was turned off, muted or put its card away stays so',
   await $.turn.complete(done)
   await clock.settle()
   expect(w.sounds).toHaveLength(0)
+})
+
+test("a start clears what 0.2's band and 0.1's self-opening card kept, and keeps the rest", async ($, on) => {
+  const w = world({ band: false, card: false, muted: true })
+  engine(on, w)
+  await $.session.start(start)
+  expect([...w.store.keys()]).toEqual(['muted'])
+  expect(w.opens).toHaveLength(0)
 })
 
 test('a clear, resume or fork sets the theme again', async ($, on) => {
@@ -500,14 +508,7 @@ test('it stores nothing but its own settings', async ($, on) => {
   expect([...w.store.keys()]).toEqual([])
 })
 
-// ---------------------------------------------------------------- 0.2.0: the band, the weather, petting, notes and moths
-
-const BAND = (props: Partial<{ hasSurvey: boolean; isCollapsed: boolean; maxRows: number; bodyColumns: number }> = {}) =>
-  ({
-    plugin: 'pixel-room',
-    component: 'AbovePrompt',
-    props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {}, ...props },
-  }) as const
+// ---------------------------------------------------------------- 0.2.0: the weather, petting, notes and moths
 
 async function altOf($: Engine, scene: string): Promise<string> {
   const ui = await $.ui.mount({ ...BACKDROP(scene), surface: 'desktop' })
@@ -535,68 +536,6 @@ const sessionMode = (on: On) =>
     const { Text } = $.ui.resolve(e)
     return <Text>{e.props.modes.join(' & ')}</Text>
   })
-
-test('the band draws the room as a strip on desktop and mobile', async ($, on) => {
-  const w = world()
-  engine(on, w)
-  await $.session.start(start)
-  for (const surface of ['desktop', 'mobile'] as const) {
-    const ui = await $.ui.mount({ ...BAND(), surface })
-    const svg = await ui.find({ type: 'Svg' })
-    expect(String(svg?.props.source)).toStartWith('<svg')
-    expect(svg?.props.isInteractive).toBe(true)
-    // Drawn at its own size, never the app's default box.
-    const columns = BAND().props.bodyColumns
-    expect(svg?.props.height).toBe(32)
-    expect(svg?.props.width).toBe(Math.min(640, Math.max(120, Math.round(columns * 3.75))) * 2)
-    expect(String(svg?.props.source)).toContain(`width="${svg?.props.width}" height="32"`)
-    expect(String(svg?.props.alt)).toBe('A strip of the pixel room: rain at the window, the cat asleep on the sill')
-    await ui.unmount()
-  }
-})
-
-test('the band passes on the terminal, behind a survey, with no rows, and while put away; collapsed it is one dim word', async ($, on) => {
-  const w = world()
-  engine(on, w)
-  await $.session.start(start)
-  const svgIn = async (props: Parameters<typeof BAND>[0], surface: 'terminal' | 'desktop' = 'desktop') => {
-    const ui = await $.ui.mount({ ...BAND(props), surface })
-    const svg = await ui.find({ type: 'Svg' })
-    const text = (await ui.find({ type: 'Text' }))?.text
-    await ui.unmount()
-    return { svg, text }
-  }
-  expect((await svgIn({}, 'terminal')).text).toBeUndefined()
-  expect((await svgIn({ hasSurvey: true })).svg).toBeUndefined()
-  expect((await svgIn({ maxRows: 0 })).svg).toBeUndefined()
-  const collapsed = await svgIn({ isCollapsed: true })
-  expect(collapsed.svg).toBeUndefined()
-  expect(collapsed.text).toBe('Pixel Room')
-
-  expect(await run($, 'band')).toBe('The band above the prompt is on. /pixel-room band off puts it away.')
-  expect(await run($, 'band off')).toBe(
-    'The band above the prompt is put away, here and in later sessions. /pixel-room band on brings it back, and /pixel-room card shows the room beside the chat.',
-  )
-  expect(w.store.get('band')).toBe(false)
-  expect((await svgIn({})).svg).toBeUndefined()
-  expect(await run($, 'band')).toBe('The band above the prompt is put away. /pixel-room band on brings it back.')
-  expect(await run($, 'band  ON')).toBe('The band is back above the prompt.')
-  expect(w.store.has('band')).toBe(false)
-  expect((await svgIn({})).svg).toBeDefined()
-
-  await run($, 'off')
-  expect((await svgIn({})).svg).toBeUndefined()
-})
-
-test('while the band is on, the desktop opens no card by itself', async ($, on) => {
-  const w = world()
-  engine(on, w)
-  await $.session.start(start)
-  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
-  expect(w.opens).toHaveLength(0)
-  expect(await run($, 'card')).toBe('The room card is open.')
-  expect(w.opens).toEqual([{ id: 'pixel-room', title: 'Pixel Room' }])
-})
 
 test('/pixel-room weather pins a weather across sessions, and auto gives back the day\'s own', async ($, on) => {
   const w = world()
@@ -731,9 +670,6 @@ test('subagents in flight are moths at the lamp, three at most', async ($, on) =
   await clock.advance(4000)
   expect(w.themes).toHaveLength(before + 1)
   expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).toContain('three moths at the lamp')
-  const band = await $.ui.mount({ ...BAND(), surface: 'desktop' })
-  expect(String((await band.find({ type: 'Svg' }))?.props.alt)).toContain('three moths at the lamp')
-  await band.unmount()
 
   await clock.advance(16_000)
   await Promise.all(calls)
@@ -788,12 +724,11 @@ test('/pixel-room describes the weather, the notes and the moths too', async ($,
   )
 })
 
-test('forget deletes the weather and the band too', async ($, on) => {
+test('forget deletes the weather too', async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
   await run($, 'weather fog')
-  await run($, 'band off')
   await run($, 'glass frosted')
   await run($, 'forget')
   expect([...w.store.keys()]).toEqual([])

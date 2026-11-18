@@ -8,7 +8,7 @@ import { isMoonUp, moonName, weatherWord } from './sky'
 
 export type { Cat, Phase }
 
-/** What the room's words are about: the band's and card's view, or the scene's input. */
+/** What the room's words are about: the card's view, or the scene's input. */
 export type Room = Pick<RoomView, 'cat' | 'phase' | 'weather' | 'moon' | 'moths' | 'notes'>
 
 /** What the turn's tool calls came to so far. */
@@ -275,13 +275,6 @@ export function sceneAlt(input: SceneInput): string {
   if (input.flourish === 'plane') extras.push('a paper plane gliding past the window')
   const more = extras.length === 0 ? '' : `, with ${extras.length === 1 ? extras[0] : `${extras.slice(0, -1).join(', ')} and ${extras.at(-1)}`}`
   return `A pixel room ${when}: ${sky} and ${cat}${more}`
-}
-
-/** What the band shows, for a reader that cannot see it. */
-export function bandAlt(view: RoomView): string {
-  const sky = view.weather === 'clear' ? `a clear ${view.phase === 'day' ? 'day' : view.phase}` : `${view.weather} at the window`
-  const moths = view.moths > 0 ? `, ${mothsAt(view.moths, view.phase)}` : ''
-  return `A strip of the pixel room: ${sky}, the cat ${caption(view.cat)}${moths}`
 }
 
 /** The notes as a tally for the card: `2 of 5 notes done`, or nothing with no list. */
