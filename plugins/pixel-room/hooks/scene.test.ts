@@ -1,18 +1,17 @@
 import { expect, test } from 'claude-code/testing'
 
 import { buildCard, buildGlance } from './card'
+import type { Cat, Phase, RoomView } from './model'
 import { pathData } from './pixels'
-import type { Cat, Phase } from './room'
-import { roomState } from './room'
-import { SCENE_LIMIT, buildScene } from './scene'
+import { buildScene, quietScene } from './scene'
 import * as SPRITES from './sprites'
 
 const CATS: Cat[] = ['asleep', 'pacing', 'watching', 'startled', 'stretch']
 const PHASES: Phase[] = ['day', 'dusk', 'night']
 const TIME = { hour: 22, minute: 40, second: 5 }
-const ALL = PHASES.flatMap(phase => CATS.map(cat => roomState(cat, phase)))
+const ALL = PHASES.flatMap(phase => CATS.map(cat => quietScene(cat, phase)))
 
-test('every state builds a whole SVG that fills any screen, well under the limit', () => {
+test('every state builds a whole SVG that fills any screen, under the redraw budget', () => {
   for (const state of ALL) {
     const svg = buildScene(state, TIME)
     expect(svg).toStartWith('<svg')
@@ -21,7 +20,8 @@ test('every state builds a whole SVG that fills any screen, well under the limit
     expect(svg).toContain('preserveAspectRatio="xMidYMid slice"')
     expect(svg).toContain('shape-rendering="crispEdges"')
     expect(svg).toContain('@media (max-aspect-ratio:3/4)')
-    expect(svg.length).toBeLessThan(SCENE_LIMIT / 2)
+    // The whole room keeps under the redraw budget, so a redraw stays light.
+    expect(svg.length).toBeLessThan(96_000)
   }
 })
 
@@ -30,7 +30,7 @@ test('the scene is the same for the same state and time', () => {
 })
 
 test('each pose draws its own cat', () => {
-  const scene = (cat: Cat) => buildScene(roomState(cat, 'night'), TIME)
+  const scene = (cat: Cat) => buildScene(quietScene(cat, 'night'), TIME)
   expect(scene('asleep')).toContain('class="pr-b0"')
   expect(scene('asleep')).toContain('class="pr-z"')
   expect(scene('asleep')).not.toContain('class="pr-pc"')
@@ -46,13 +46,13 @@ test('each pose draws its own cat', () => {
 })
 
 test('the lamp glows from dusk on, never by day', () => {
-  expect(buildScene(roomState('asleep', 'night'), TIME)).toContain('class="pr-gl"')
-  expect(buildScene(roomState('asleep', 'dusk'), TIME)).toContain('class="pr-gl"')
-  expect(buildScene(roomState('asleep', 'day'), TIME)).not.toContain('class="pr-gl"')
+  expect(buildScene(quietScene('asleep', 'night'), TIME)).toContain('class="pr-gl"')
+  expect(buildScene(quietScene('asleep', 'dusk'), TIME)).toContain('class="pr-gl"')
+  expect(buildScene(quietScene('asleep', 'day'), TIME)).not.toContain('class="pr-gl"')
 })
 
 test('the clock shows the time it was drawn at, and keeps it after', () => {
-  const svg = buildScene(roomState('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
+  const svg = buildScene(quietScene('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
   // 22:40 is the minute hand's ninth step and the hour hand's eleventh.
   const on = [...svg.matchAll(/class="pr-(mh|hh) pr-on" style="animation-delay:(-?\d+)s"/g)].map(m => [m[1], Number(m[2])])
   expect(on).toEqual([
@@ -88,11 +88,11 @@ test('runs merge across rows into one path', () => {
 
 test('the card and its glance are small pixel SVGs for every pose', () => {
   for (const cat of CATS) {
-    const view = { cat, phase: 'night' as const, turns: 3, plant: 'perky' as const, isWorking: true }
+    const view: RoomView = { cat, phase: 'night', weather: 'rain', moon: 0.5, turns: 3, plant: 'perky', isWorking: true, moths: 1, notes: { open: 2, active: 1, done: 1 }, flourish: 'none' }
     for (const svg of [buildCard(view), buildGlance(view)]) {
       expect(svg).toStartWith('<svg')
       expect(svg).toContain('shape-rendering="crispEdges"')
-      expect(svg.length).toBeLessThan(20_000)
+      expect(svg.length).toBeLessThan(24_000)
     }
   }
 })

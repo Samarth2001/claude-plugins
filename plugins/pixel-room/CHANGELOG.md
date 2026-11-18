@@ -2,6 +2,35 @@
 
 All notable changes to pixel-room. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pixel-room--v<version>`.
 
+## [0.2.0] - 2026-11-18
+
+### Added
+
+- The day's weather at the window, the same all day and drawn from the date and season: rain, a fine drizzle with beaded drops, slow swaying snow with snow on the rooftops and frost in the corners, drifting fog over pale towers, or a clear sky with stars at night and a sunbeam with dust motes by day. The floor light follows it. `/pixel-room weather` says today's weather and the moon, and `/pixel-room weather rain|drizzle|snow|fog|clear` pins one until `/pixel-room weather auto`.
+- The moon in its real phase, crossing the upper glass through the night, dimmer and haloed behind rain, drizzle or snow.
+- Dawn, from 05:00 to 07:00: an ember and rose sky with a low sun, cooler and fresher than dusk.
+- Seasons by the local date, turned around south of the equator by the time zone's name, with a small object on the bookcase for each: a snow globe, tulips, a cactus or a pumpkin.
+- Fairy lights along the top of the window, glowing softly while the lamp is lit, with a slow chase along the string while Claude works.
+- A corkboard on the wall whose sticky notes follow Claude's todo list or task list: done, under way and waiting, up to six with a `+` past that. With no list it holds a polaroid, a postcard and a ticket stub.
+- A small calendar on the wall showing the real month and day, in a pixel font of its own.
+- Moths circling the lamp, one for each subagent running, up to three.
+- A monitor that shows what Claude is doing: a calm screensaver while idle, scrolling code while it works, a red line after the turn's first tool error, and a green check after a clean turn, resting to the screensaver a few minutes later.
+- A woven rug under the cat and a faint pattern on the wallpaper. The lamp's light is softer and warmer, and flickers once when the cat is startled.
+- Petting: click the room, or run `/pixel-room pet`, and hearts rise over the cat while it purrs, at most once every three seconds. A soft purr sound joins the chime and the low tone.
+- A paper plane glides past the window after a `git push` that goes through.
+- The cat's ear twitches in its sleep, its tail tip shifts, and it blinks while it watches.
+- A band above the prompt in the desktop and mobile apps: a slim animated strip of the room with a tiny window, the cat on the sill, fairy lights and the session's mugs, notes, plant and moths. `/pixel-room band off` puts it away and `/pixel-room band on` brings it back. Collapsed, it reads "Pixel Room".
+- On the terminal, the line that closes a turn uses the room's own word, such as "Steeped" or "Mulled", keeping the time.
+
+### Changed
+
+- The footer label follows the weather and the light: `snowing · lamp on`, `clear · full moon`, `drizzle · dawn`.
+- The working line's phrases follow the weather, the time and what is going on ("Snow on the sill", "Moon over the city", "First light", "Moths at the lamp", "Ticking off a note"), still one phrase per turn for each thing the turn does.
+- `/pixel-room` describes the weather, the moon, the lamp, the cat, the notes and the moths.
+- The room card's window shows the day's weather and the moon, fairy lights hang over its portrait at night, and the full card gains a small corkboard while a list runs. Its widget opens by itself only while the band is put away, since the band now takes its place; `/pixel-room card` still opens it.
+- Changes to the notes and the moths share one redraw of the backdrop every few seconds at most, so a busy turn never redraws it on every tool call.
+- It stores two more settings, the pinned weather and whether the band is put away, and `forget` deletes them too.
+
 ## [0.1.0] - 2026-11-17
 
 ### Added
@@ -38,4 +67,5 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.
 
+[0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.0
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.1.0

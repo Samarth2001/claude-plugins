@@ -21,6 +21,10 @@ type World = {
   canPlay: boolean
   /** How the engine answers the next tool calls. */
   tools: 'ok' | 'error' | 'deny'
+  /** What a tool answers when it goes through, by tool. */
+  results: Record<string, unknown>
+  /** How long, in milliseconds, each tool call takes. */
+  wait: number
 }
 
 const world = (entries: Record<string, unknown> = {}): World => ({
@@ -34,6 +38,8 @@ const world = (entries: Record<string, unknown> = {}): World => ({
   isDrawn: true,
   canPlay: true,
   tools: 'ok',
+  results: {},
+  wait: 0,
 })
 
 // The engine beneath the plugin: each hook answers as the engine would, from `w`.
@@ -79,9 +85,10 @@ function engine(on: On, w: World, now = NOON) {
     return { value: undefined } as never
   })
   on('store.keys', () => ({ value: [...w.store.keys()] }) as never)
-  on('tool.call', () =>
-    (w.tools === 'deny' ? { deny: 'no' } : w.tools === 'error' ? { isError: true, result: 'failed', text: 'failed' } : { result: {} }) as never,
-  )
+  on('tool.call', async (_$, e) => {
+    if (w.wait > 0) await clock.sleep(w.wait)
+    return (w.tools === 'deny' ? { deny: 'no' } : w.tools === 'error' ? { isError: true, result: 'failed', text: 'failed' } : { result: w.results[String(e.tool)] ?? {} }) as never
+  })
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
   on('classic.SessionStart', () => ({}))
@@ -335,8 +342,8 @@ test('the footer carries one quiet label, on the terminal and the desktop', asyn
   }
 })
 
-test('the card opens as a widget on the desktop, once, and never by itself elsewhere', async ($, on) => {
-  const w = world()
+test('with the band put away, the card opens as a widget on the desktop, once', async ($, on) => {
+  const w = world({ band: false })
   engine(on, w)
   await $.session.start(start)
   await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
@@ -389,7 +396,7 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   await $.session.start(start)
 
   expect(await run($, '')).toBe(
-    'Rain on the glass, a grey afternoon. The cat is asleep on the sill.\n0 cups so far; the plant looks neutral. Sounds are on, softly.\nThe room is drawn behind this window.',
+    'Rain on the glass, the lamp off.\nThe cat is asleep on the sill.\n0 cups so far; the plant looks neutral. Sounds are on, softly.\nThe room is drawn behind this window.',
   )
 
   const themesBefore = w.themes.length
@@ -416,7 +423,7 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(await run($, 'card  ON')).toBe('The room card is back.')
   expect(w.store.has('card')).toBe(false)
 
-  expect(await run($, 'off')).toBe('Pixel Room is off, its card and sounds too. /pixel-room on brings it back.')
+  expect(await run($, 'off')).toBe('Pixel Room is off, its band, card and sounds too. /pixel-room on brings it back.')
   expect(w.clears).toBe(1)
   expect(w.store.get('enabled')).toBe(false)
   const before = w.themes.length
@@ -431,7 +438,9 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(w.store.has('enabled')).toBe(false)
   expect(w.themes).toHaveLength(before + 1)
 
-  expect(await run($, 'meow')).toBe('Try /pixel-room, or off, on, mute, unmute, glass clear|soft|frosted, card, card off, card on or forget.')
+  expect(await run($, 'meow')).toBe(
+    'Try /pixel-room, or off, on, mute, unmute, pet, glass clear|soft|frosted, weather [rain|drizzle|snow|fog|clear|auto], band off|on, card, card off, card on or forget.',
+  )
 })
 
 test('/pixel-room forget deletes everything it kept, and clears only a theme of its own', async ($, on) => {
@@ -484,5 +493,299 @@ test('it stores nothing but its own settings', async ($, on) => {
   await $.turn.start(begin)
   await $.tool.call(bash('npm test'))
   await $.turn.complete(done)
+  expect([...w.store.keys()]).toEqual([])
+})
+
+// ---------------------------------------------------------------- 0.2.0: the band, the weather, petting, notes and moths
+
+const BAND = (props: Partial<{ hasSurvey: boolean; isCollapsed: boolean; maxRows: number; bodyColumns: number }> = {}) =>
+  ({
+    plugin: 'pixel-room',
+    component: 'AbovePrompt',
+    props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {}, ...props },
+  }) as const
+
+async function altOf($: Engine, scene: string): Promise<string> {
+  const ui = await $.ui.mount({ ...BACKDROP(scene), surface: 'desktop' })
+  const alt = String((await ui.find({ type: 'Svg' }))?.props.alt)
+  await ui.unmount()
+  return alt
+}
+
+async function footer($: Engine): Promise<string | undefined> {
+  const ui = await $.ui.mount({ plugin: 'pixel-room', component: 'SessionMode', props: { modes: [] }, surface: 'desktop' })
+  const text = (await ui.find({ type: 'Text' }))?.text
+  await ui.unmount()
+  return text
+}
+
+async function tally($: Engine): Promise<string | undefined> {
+  const ui = await $.ui.mount({ ...PANE('inline'), surface: 'terminal' })
+  const text = (await ui.find({ type: 'Text', text: /cup/ }))?.text
+  await ui.unmount()
+  return text
+}
+
+const sessionMode = (on: On) =>
+  on('ui.render', { component: 'SessionMode' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>{e.props.modes.join(' & ')}</Text>
+  })
+
+test('the band draws the room as a strip on desktop and mobile', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  for (const surface of ['desktop', 'mobile'] as const) {
+    const ui = await $.ui.mount({ ...BAND(), surface })
+    const svg = await ui.find({ type: 'Svg' })
+    expect(String(svg?.props.source)).toStartWith('<svg')
+    expect(svg?.props.isInteractive).toBe(true)
+    expect(String(svg?.props.alt)).toBe('A strip of the pixel room: rain at the window, the cat asleep on the sill')
+    await ui.unmount()
+  }
+})
+
+test('the band passes on the terminal, behind a survey, with no rows, and while put away; collapsed it is one dim word', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  const svgIn = async (props: Parameters<typeof BAND>[0], surface: 'terminal' | 'desktop' = 'desktop') => {
+    const ui = await $.ui.mount({ ...BAND(props), surface })
+    const svg = await ui.find({ type: 'Svg' })
+    const text = (await ui.find({ type: 'Text' }))?.text
+    await ui.unmount()
+    return { svg, text }
+  }
+  expect((await svgIn({}, 'terminal')).text).toBeUndefined()
+  expect((await svgIn({ hasSurvey: true })).svg).toBeUndefined()
+  expect((await svgIn({ maxRows: 0 })).svg).toBeUndefined()
+  const collapsed = await svgIn({ isCollapsed: true })
+  expect(collapsed.svg).toBeUndefined()
+  expect(collapsed.text).toBe('Pixel Room')
+
+  expect(await run($, 'band')).toBe('The band above the prompt is on. /pixel-room band off puts it away.')
+  expect(await run($, 'band off')).toBe(
+    'The band above the prompt is put away, here and in later sessions. /pixel-room band on brings it back, and /pixel-room card shows the room beside the chat.',
+  )
+  expect(w.store.get('band')).toBe(false)
+  expect((await svgIn({})).svg).toBeUndefined()
+  expect(await run($, 'band')).toBe('The band above the prompt is put away. /pixel-room band on brings it back.')
+  expect(await run($, 'band  ON')).toBe('The band is back above the prompt.')
+  expect(w.store.has('band')).toBe(false)
+  expect((await svgIn({})).svg).toBeDefined()
+
+  await run($, 'off')
+  expect((await svgIn({})).svg).toBeUndefined()
+})
+
+test('while the band is on, the desktop opens no card by itself', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+  expect(w.opens).toHaveLength(0)
+  expect(await run($, 'card')).toBe('The room card is open.')
+  expect(w.opens).toEqual([{ id: 'pixel-room', title: 'Pixel Room' }])
+})
+
+test('/pixel-room weather pins a weather across sessions, and auto gives back the day\'s own', async ($, on) => {
+  const w = world()
+  engine(on, w, EVENING)
+  sessionMode(on)
+  await $.session.start(start)
+  expect(await run($, 'weather')).toBe("Rain today: the room's own weather, not a forecast.\nThe moon is at first quarter.")
+  expect(await footer($)).toBe('raining · lamp on')
+
+  const before = w.themes.length
+  expect(await run($, 'weather SNOW')).toBe("The weather is pinned to snow, here and in later sessions. /pixel-room weather auto brings back the day's own.")
+  expect(w.store.get('weather')).toBe('snow')
+  expect(w.themes).toHaveLength(before + 1)
+  expect(await footer($)).toBe('snowing · lamp on')
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).toContain('snow falling outside')
+  expect(await run($, 'weather')).toBe("The weather is pinned to snow. /pixel-room weather auto brings back the day's own.\nThe moon is at first quarter.")
+  expect(await run($, 'weather hail')).toBe("Try /pixel-room weather rain, drizzle, snow, fog or clear to pin one, or weather auto for the day's own.")
+
+  expect(await run($, 'weather auto')).toBe("Back to the day's own weather: rain today.")
+  expect(w.store.has('weather')).toBe(false)
+  expect(await footer($)).toBe('raining · lamp on')
+  await run($, 'weather fog')
+  expect(await run($, 'weather day')).toBe("Back to the day's own weather: rain today.")
+  expect(w.store.has('weather')).toBe(false)
+})
+
+test('a later session keeps the pinned weather', async ($, on) => {
+  const w = world({ weather: 'clear' })
+  engine(on, w, EVENING)
+  sessionMode(on)
+  await $.session.start(start)
+  expect(await footer($)).toBe('clear · first quarter')
+  expect(await altOf($, 'room-a')).toContain('a first-quarter moon in a clear sky')
+})
+
+// The kit raises no `ui.pointer`, so petting is tested through `/pixel-room pet`, which a click on the backdrop runs the same way.
+test('petting the cat: hearts in the scene, a purr, at most once every three seconds, and a hush when muted', async ($, on) => {
+  const w = world()
+  const clock = engine(on, w)
+  await $.session.start(start)
+  const before = w.themes.length
+  expect(await run($, 'pet')).toBe('You pet the cat. It purrs.')
+  await clock.settle()
+  expect(w.themes).toHaveLength(before + 1)
+  expect(w.sounds).toEqual([{ asset: 'sounds/purr.wav', gain: 0.5 }])
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).toContain('asleep on the sill, purring')
+
+  // Too soon: nothing more.
+  await clock.advance(1000)
+  expect(await run($, 'pet')).toBe('The cat is still purring from the last one.')
+  await clock.settle()
+  expect(w.themes).toHaveLength(before + 1)
+  expect(w.sounds).toHaveLength(1)
+
+  // The hearts leave the scene after a few seconds, with no redraw of the backdrop.
+  await clock.advance(5000)
+  expect(w.themes).toHaveLength(before + 1)
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).not.toContain('purring')
+
+  // Muted, the hearts come without the purr.
+  await run($, 'mute')
+  expect(await run($, 'pet')).toBe('You pet the cat. It purrs, too softly to hear.')
+  await clock.settle()
+  expect(w.themes).toHaveLength(before + 2)
+  expect(w.sounds).toHaveLength(1)
+
+  await run($, 'off')
+  expect(await run($, 'pet')).toBe('The room is dark: /pixel-room on lights it again.')
+})
+
+test('a git push that goes through sends a paper plane past the window', async ($, on) => {
+  const w = world()
+  const clock = engine(on, w)
+  await $.session.start(start)
+  await $.turn.start(begin)
+  await $.tool.call(bash('git status'))
+  const before = w.themes.length
+  await $.tool.call(bash('git add -A && git push origin main'))
+  expect(w.themes).toHaveLength(before + 1)
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).toContain('a paper plane gliding past the window')
+  await clock.advance(5000)
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).not.toContain('paper plane')
+
+  // In the background, or failed, it sends nothing.
+  await $.tool.call({ ...bash('git push'), run_in_background: true } as never)
+  w.tools = 'error'
+  await $.tool.call(bash('git push'))
+  w.tools = 'ok'
+  await $.tool.call(bash('git pull'))
+  expect(w.themes).toHaveLength(before + 2) // the failed push startled the cat, nothing more
+})
+
+test("Claude's todo list and task list reach the room as notes, a few seconds later and in one redraw", async ($, on) => {
+  const w = world()
+  const clock = engine(on, w)
+  await $.session.start(start)
+  await $.turn.start(begin)
+  await $.tool.call(read('/home/me/desk/a.ts'))
+  const before = w.themes.length
+  const todos = (...statuses: string[]) => statuses.map((status, i) => ({ content: `step ${i}`, status, activeForm: `Doing step ${i}` }))
+  await $.tool.call({ tool: 'TodoWrite', todos: todos('in_progress', 'pending', 'pending') } as never)
+  await $.tool.call({ tool: 'TodoWrite', todos: todos('completed', 'in_progress', 'pending') } as never)
+  expect(w.themes).toHaveLength(before)
+  await clock.advance(4000)
+  expect(w.themes).toHaveLength(before + 1)
+  expect(await tally($)).toBe('raining · lamp off · 0 cups · plant neutral · 1 of 3 notes done')
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).toContain('three notes on the corkboard')
+
+  // Tasks count beside the todos, by their ids.
+  w.results.TaskCreate = { task: { id: '7', subject: 'Ship it' } }
+  await $.tool.call({ tool: 'TaskCreate', subject: 'Ship it', description: 'Ship it' } as never)
+  w.results.TaskUpdate = { success: true, taskId: '7', updatedFields: ['status'] }
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '7', status: 'completed' } as never)
+  await clock.advance(4000)
+  expect(w.themes).toHaveLength(before + 2)
+  expect(await tally($)).toContain('2 of 4 notes done')
+  await $.tool.call({ tool: 'TaskUpdate', taskId: '7', status: 'deleted' } as never)
+  await clock.advance(4000)
+  expect(await tally($)).toContain('1 of 3 notes done')
+})
+
+test('subagents in flight are moths at the lamp, three at most', async ($, on) => {
+  const w = world()
+  const clock = engine(on, w, EVENING)
+  await $.session.start(start)
+  await $.turn.start(begin)
+  await $.tool.call(read('/home/me/desk/a.ts'))
+  const before = w.themes.length
+  w.wait = 20_000
+  const agent = (n: number) => ({ tool: 'Agent', description: `look ${n}`, prompt: 'look around', run_in_background: false }) as never
+  const calls = [1, 2, 3, 4].map(n => $.tool.call(agent(n)))
+  await clock.advance(4000)
+  expect(w.themes).toHaveLength(before + 1)
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).toContain('three moths at the lamp')
+  const band = await $.ui.mount({ ...BAND(), surface: 'desktop' })
+  expect(String((await band.find({ type: 'Svg' }))?.props.alt)).toContain('three moths at the lamp')
+  await band.unmount()
+
+  await clock.advance(16_000)
+  await Promise.all(calls)
+  await clock.advance(4000)
+  expect(w.themes).toHaveLength(before + 2)
+  expect(await altOf($, sceneOf(w.themes.at(-1)) ?? '')).not.toContain('moth')
+})
+
+test('the monitor rests a while after a turn, with a redraw of its own', async ($, on) => {
+  const w = world()
+  const clock = engine(on, w)
+  await $.session.start(start)
+  await $.turn.start(begin)
+  await $.turn.complete(done)
+  const before = w.themes.length
+  await clock.advance(10 * MINUTE)
+  expect(w.themes).toHaveLength(before + 1)
+  await clock.advance(10 * MINUTE)
+  expect(w.themes).toHaveLength(before + 1)
+})
+
+test("on the terminal a turn's closing line takes the room's word, keeping its time", async ($, on) => {
+  const w = world()
+  engine(on, w)
+  on('ui.render', { component: 'TurnDuration' }, ($, e) => {
+    const { Text } = $.ui.resolve(e)
+    return <Text>{`${e.props.word} for ${e.props.durationMs / 1000}s`}</Text>
+  })
+  await $.session.start({ ...start, surface: 'terminal' })
+  const line = async (props: Record<string, unknown> = {}, surface: 'terminal' | 'desktop' = 'terminal') => {
+    const ui = await $.ui.mount({ plugin: 'pixel-room', component: 'TurnDuration', requestId: 'm1', props: { word: 'Baked', durationMs: 3000, ...props } as never, surface })
+    const text = (await ui.find({ type: 'Text' }))?.text
+    await ui.unmount()
+    return text
+  }
+  const first = await line()
+  expect(first).toMatch(/^(Steeped|Purred|Mulled|Brewed|Drifted) for 3s$/)
+  expect(await line()).toBe(first)
+  expect(await line({ isExpanded: true })).toBe('Baked for 3s')
+  expect(await line({ waitingFor: { agents: [], workflows: 1 } })).toBe('Baked for 3s')
+  await run($, 'off')
+  expect(await line()).toBe('Baked for 3s')
+})
+
+test('/pixel-room describes the weather, the notes and the moths too', async ($, on) => {
+  const w = world({ weather: 'snow' })
+  engine(on, w, EVENING)
+  await $.session.start(start)
+  await $.tool.call({ tool: 'TodoWrite', todos: [{ content: 'a', status: 'completed', activeForm: 'A' }, { content: 'b', status: 'pending', activeForm: 'B' }] } as never)
+  expect(await run($, '')).toBe(
+    'Snow falling past the window, the lamp lit. A first-quarter moon behind the snow.\nThe cat is asleep on the sill. Two notes on the corkboard, one done.\n0 cups so far; the plant looks neutral. Sounds are on, softly.\nThe room is drawn behind this window.',
+  )
+})
+
+test('forget deletes the weather and the band too', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await run($, 'weather fog')
+  await run($, 'band off')
+  await run($, 'glass frosted')
+  await run($, 'forget')
   expect([...w.store.keys()]).toEqual([])
 })

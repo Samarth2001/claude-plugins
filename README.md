@@ -37,7 +37,7 @@ Installed plugins also load in the Claude desktop app (Code tab, local sessions)
 | [HUD](plugins/hud) | `hud` | mods | A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane |
 | [Constellation](plugins/constellation) | `constellation` | themes | A night sky behind the desktop app that maps your work: every file Claude touches becomes a star, and files edited together join into constellations that build up per project |
 | [Real Sky](plugins/real-sky) | `real-sky` | themes | A quiet sky almanac behind the desktop app: the sun and moon ride an hour arc at your local time, the colors follow the light, and the weather and a barometer follow the session |
-| [Pixel Room](plugins/pixel-room) | `pixel-room` | themes | A lo-fi pixel desk scene behind the desktop app with rain on the window and a cat that sleeps until Claude works, a lamp that comes on at night and soft sounds on finish or failure |
+| [Pixel Room](plugins/pixel-room) | `pixel-room` | themes | A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents, a band above the prompt and soft sounds |
 | [Themes](plugins/themes) | `themes` | mods | A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button |
 <!-- catalog:end -->
 

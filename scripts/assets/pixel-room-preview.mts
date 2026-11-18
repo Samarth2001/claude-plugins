@@ -1,6 +1,7 @@
 // Draws plugins/pixel-room/assets/preview.svg: the scene exactly as the mod
-// builds it, at night with the lamp lit and the cat asleep on the sill, the
-// clock at twenty to eleven.
+// builds it on a rainy night while Claude works: the cat sitting up to watch,
+// the monitor scrolling code, a todo list on the corkboard and a moth at the
+// lamp for a subagent, the clock at twenty to eleven.
 //
 //   node --experimental-strip-types scripts/assets/pixel-room-preview.mts [--check]
 //
@@ -23,12 +24,13 @@ registerHooks({
   },
 })
 
-const { buildScene } = await import('../../plugins/pixel-room/hooks/scene.ts')
-const { roomState } = await import('../../plugins/pixel-room/hooks/room.ts')
+const { buildScene, quietScene } = await import('../../plugins/pixel-room/hooks/scene.ts')
+
 
 const OUT = 'plugins/pixel-room/assets/preview.svg'
 
-const scene = buildScene(roomState('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
+const input = quietScene('watching', 'night', { moths: 1, notes: { open: 2, active: 1, done: 2 } })
+const scene = buildScene(input, { hour: 22, minute: 40, second: 0 })
 // A fixed size for a README; the mod's own scene fills its window.
 const svg = scene.replace('width="100%" height="100%"', 'width="1200" height="750"') + '\n'
 
