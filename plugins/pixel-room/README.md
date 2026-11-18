@@ -2,7 +2,7 @@
 
 A late-night pixel room behind the conversation in the Claude desktop app. The day's weather falls past a tall window, the moon crosses it at night, fairy lights glow along its frame, a desk lamp lights at dusk, and an orange cat sleeps on the windowsill until Claude starts working. Then it gets up and paces, sits to watch while tools run, jumps at an error, and stretches before curling up again when the turn ends clean. Click it and it purrs. Claude's todo list hangs on a corkboard as sticky notes, its subagents circle the lamp as moths, and a slim band of the same room sits above the prompt. The room is drawn in one small palette of 17 colours, and the app's own colours, the working line, the footer and a small room card all come from it.
 
-![A pixel room at night: rain on a tall window with a cat asleep on the sill, a lit desk lamp, a monitor of code and a wall clock](assets/preview.svg)
+![A pixel room at night: rain and the moon at a tall window under fairy lights, an orange cat sitting up on the rug to watch, a lit desk lamp with a moth, a monitor of scrolling code, a wall calendar and a corkboard of sticky notes](assets/preview.svg)
 
 ## Install
 
@@ -20,8 +20,8 @@ The room keeps to the left and right edges and the bottom of the window, so the 
 - **The window**: a city behind the glass with a few lit windows and the day's weather outside. The window's light falls across the floorboards and changes with the weather.
 - **Fairy lights**: a string draped along the top of the frame. While the lamp is lit each bulb glows softly, and while Claude works a slow chase runs along the string. By day they are unlit.
 - **The bookcase**: low, under the window, with a candle and a small object for the season: a snow globe in winter, tulips in spring, a cactus in summer and a pumpkin in autumn.
-- **The desk**: a desk lamp, a mug of tea with rising steam, a notebook and pencil, a flip calendar showing today's month and day, and a monitor that shows what Claude is doing (below).
-- **The wall**: a shelf with a trailing plant, a round clock whose hands keep your local time, faint wallpaper, and a corkboard of sticky notes.
+- **The desk**: a desk lamp, a mug of tea with rising steam, a notebook and pencil, headphones hung on the monitor, and a monitor that shows what Claude is doing (below).
+- **The wall**: a shelf with a trailing plant, a small calendar showing today's month and day, a round clock whose hands keep your local time, faint wallpaper, and a corkboard of sticky notes.
 - **The floor**: a woven rug where the cat paces.
 
 ### Weather and the moon
@@ -126,7 +126,7 @@ To try it beside the other themes and switch between them, install the [`themes`
 - Clicking the room to pet the cat works where the app passes a click on the backdrop to the room. Anywhere else, `/pixel-room pet` does the same.
 - The working line, the footer label and the room card also show in the terminal, where the card is plain text, and the turn line shows only there. The terminal draws no backdrop and no band.
 - Sounds play on macOS, where Claude Code plays clips with `afplay`. A Linux or Windows terminal has no player, so there they play nothing.
-- It needs Claude Code v2.1.324 or later.
+- It was built and tested on Claude Code v2.1.327; use that or later.
 
 ## What it stores and reads
 
@@ -142,7 +142,7 @@ To try it beside the other themes and switch between them, install the [`themes`
 - A session has one theme. Another theme mod replaces this one, and setting this one replaces the other.
 - `/pixel-room off` clears whichever theme stands, not only this one. `/pixel-room forget` clears it only while the room is on.
 - With reduced motion turned on in your system, the room, the band and the card are still: no rain, no snow, no pacing, no breathing, steady fairy lights, no hearts or plane, and the clock shows the time the room was last drawn.
-- On a square window the window and the desk move toward the middle. On a tall phone screen the window moves up and the bookcase, the floor light, the clock, the plant shelf and the corkboard are left out, so the window and the desk both fit.
+- On a square window the window and the desk move toward the middle. On a tall phone screen the window moves up and the bookcase, the floor light, the clock, the plant shelf, the calendar and the corkboard are left out, so the window and the desk both fit.
 
 ## Develop
 
@@ -164,7 +164,7 @@ claude --plugin-dir plugins/pixel-room     # try it, hot-reloads on save
 - `hooks/register.tsx` wires the events, the command, the clock, the redraws and the theme.
 - `types/index.d.ts` declares the state the band and card read.
 
-The preview above is the scene exactly as the plugin draws it at night. The sounds in `sounds/` are synthesized. After changing the scene or the sounds, make them again:
+The preview above is the scene exactly as the plugin draws it on a rainy night while Claude works through a todo list with a subagent running. The sounds in `sounds/` are synthesized. After changing the scene or the sounds, make them again:
 
 ```bash
 node --experimental-strip-types scripts/assets/pixel-room-preview.mts

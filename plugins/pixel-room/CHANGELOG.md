@@ -12,13 +12,13 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
 - Seasons by the local date, turned around south of the equator by the time zone's name, with a small object on the bookcase for each: a snow globe, tulips, a cactus or a pumpkin.
 - Fairy lights along the top of the window, glowing softly while the lamp is lit, with a slow chase along the string while Claude works.
 - A corkboard on the wall whose sticky notes follow Claude's todo list or task list: done, under way and waiting, up to six with a `+` past that. With no list it holds a polaroid, a postcard and a ticket stub.
-- A flip calendar on the desk showing the real month and day.
+- A small calendar on the wall showing the real month and day, in a pixel font of its own.
 - Moths circling the lamp, one for each subagent running, up to three.
 - A monitor that shows what Claude is doing: a calm screensaver while idle, scrolling code while it works, a red line after the turn's first tool error, and a green check after a clean turn, resting to the screensaver a few minutes later.
 - A woven rug under the cat and a faint pattern on the wallpaper. The lamp's light is softer and warmer, and flickers once when the cat is startled.
 - Petting: click the room, or run `/pixel-room pet`, and hearts rise over the cat while it purrs, at most once every three seconds. A soft purr sound joins the chime and the low tone.
 - A paper plane glides past the window after a `git push` that goes through.
-- The cat's ear twitches in its sleep, and it blinks while it watches.
+- The cat's ear twitches in its sleep, its tail tip shifts, and it blinks while it watches.
 - A band above the prompt in the desktop and mobile apps: a slim animated strip of the room with a tiny window, the cat on the sill, fairy lights and the session's mugs, notes, plant and moths. `/pixel-room band off` puts it away and `/pixel-room band on` brings it back. Collapsed, it reads "Pixel Room".
 - On the terminal, the line that closes a turn uses the room's own word, such as "Steeped" or "Mulled", keeping the time.
 

@@ -27,7 +27,7 @@
     {
       "name": "pixel-room",
       "source": "./plugins/pixel-room",
-      "description": "A lo-fi pixel desk scene behind the desktop app with rain on the window and a cat that sleeps until Claude works, a lamp that comes on at night and soft sounds on finish or failure",
+      "description": "A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents, a band above the prompt and soft sounds",
       "category": "themes",
       "tags": ["mod", "theme", "backdrop", "desktop"]
     },

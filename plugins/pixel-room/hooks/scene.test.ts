@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { buildCard, buildGlance } from './card'
 import type { Cat, Phase, RoomView } from './model'
 import { pathData } from './pixels'
-import { SCENE_LIMIT, buildScene, quietScene } from './scene'
+import { buildScene, quietScene } from './scene'
 import * as SPRITES from './sprites'
 
 const CATS: Cat[] = ['asleep', 'pacing', 'watching', 'startled', 'stretch']

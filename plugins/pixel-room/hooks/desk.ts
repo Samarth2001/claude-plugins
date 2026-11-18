@@ -7,7 +7,7 @@
 import { glyphText, textWidth } from './font'
 import type { Clock, LocalDate, Notes, SceneInput } from './model'
 import { FLOOR, P, pat } from './paint'
-import { Layer, ditherPattern, seeded } from './pixels'
+import { Layer, seeded } from './pixels'
 import { rle } from './sprites'
 
 /** The lit bulb under the shade, and the middle of the screen: what moths circle. */
@@ -633,12 +633,8 @@ function rug(input: SceneInput): string {
     // The fringe at the short ends, every other row.
     if (row % 2 === 1 && row < rows - 2) base.rect(x0 - 2, y, 2, 1, P.mauve).rect(x1, y, 2, 1, P.mauve)
   }
-  // Under the lit lamp, a faint warmth on the far edge.
-  const warm = input.lampOn
-    ? `<defs>${ditherPattern('qdwarm', P.rust, 2)}</defs>` +
-      new Layer().rect(222, top + 2, 44, 2, 'url(#qdwarm)').svg() +
-      glow('pdrug', 244, top + 2, 40, 5, P.amber, 0.1)
-    : ''
+  // Under the lit lamp, a faint warmth on the far edge: soft, so it never reads as a stitched line.
+  const warm = input.lampOn ? glow('pdrug', 244, top + 3, 44, 7, P.amber, 0.12) : ''
   return base.svg() + r.svg() + shade.svg() + warm
 }
 
