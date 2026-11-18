@@ -123,10 +123,10 @@ To try it beside the other themes and switch between them, install the [`themes`
 ## Where it shows
 
 - The backdrop, the colours and the widget need the Claude desktop app's Code tab; the backdrop, the colours and the band also show in the mobile app. Set the app's appearance to dark: the room and its colours are dark.
-- Clicking the room to pet the cat works where the app passes a click on the backdrop to the room. Anywhere else, `/pixel-room pet` does the same.
+- Clicking the room to pet the cat needs Claude Code v2.1.326 or later, where the app passes a click on the backdrop to the room. Anywhere else, `/pixel-room pet` does the same.
 - The working line, the footer label and the room card also show in the terminal, where the card is plain text, and the turn line shows only there. The terminal draws no backdrop and no band.
 - Sounds play on macOS, where Claude Code plays clips with `afplay`. A Linux or Windows terminal has no player, so there they play nothing.
-- It was built and tested on Claude Code v2.1.327; use that or later.
+- It needs Claude Code v2.1.324 or later.
 
 ## What it stores and reads
 
