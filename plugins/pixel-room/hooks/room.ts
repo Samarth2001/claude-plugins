@@ -3,9 +3,9 @@
 // room speaks in. Pure, with no time or engine of its own: callers hand in
 // the hour and the events.
 
-export type Cat = 'asleep' | 'pacing' | 'watching' | 'startled' | 'stretch'
+import type { Cat, Phase } from './model'
 
-export type Phase = 'day' | 'dusk' | 'night'
+export type { Cat, Phase }
 
 /** What the scene draws. */
 export type RoomState = {

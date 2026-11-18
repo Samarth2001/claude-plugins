@@ -23,12 +23,12 @@ registerHooks({
   },
 })
 
-const { buildScene } = await import('../../plugins/pixel-room/hooks/scene.ts')
-const { roomState } = await import('../../plugins/pixel-room/hooks/room.ts')
+const { buildScene, quietScene } = await import('../../plugins/pixel-room/hooks/scene.ts')
+
 
 const OUT = 'plugins/pixel-room/assets/preview.svg'
 
-const scene = buildScene(roomState('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
+const scene = buildScene(quietScene('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
 // A fixed size for a README; the mod's own scene fills its window.
 const svg = scene.replace('width="100%" height="100%"', 'width="1200" height="750"') + '\n'
 

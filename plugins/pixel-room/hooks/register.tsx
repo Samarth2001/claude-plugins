@@ -7,7 +7,7 @@ import { COLORS, GLASS_WORDS, glassFor } from './look'
 import type { Glass } from './look'
 import { caption, describeRoom, freshOutcome, isTestCommand, modeLabel, noteCall, phaseAt, roomState, soundFor, spinnerPhrase } from './room'
 import type { Cat, Phase, RoomState, Sound } from './room'
-import { buildScene } from './scene'
+import { buildScene, quietScene } from './scene'
 
 const PLUGIN = 'pixel-room'
 const PANE = 'pixel-room'
@@ -110,7 +110,7 @@ async function scene($: EngineInterface): Promise<string> {
   const now = state()
   const key = `${now.cat}|${now.phase}|${date.getHours()}:${date.getMinutes()}`
   if (built?.key === key) return built.source
-  built = { key, source: buildScene(now, { hour: date.getHours(), minute: date.getMinutes(), second: date.getSeconds() }) }
+  built = { key, source: buildScene(quietScene(now.cat, now.phase), { hour: date.getHours(), minute: date.getMinutes(), second: date.getSeconds() }) }
   return built.source
 }
 

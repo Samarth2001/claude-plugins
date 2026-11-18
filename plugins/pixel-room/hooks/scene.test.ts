@@ -3,14 +3,13 @@ import { expect, test } from 'claude-code/testing'
 import { buildCard, buildGlance } from './card'
 import { pathData } from './pixels'
 import type { Cat, Phase } from './room'
-import { roomState } from './room'
-import { SCENE_LIMIT, buildScene } from './scene'
+import { SCENE_LIMIT, buildScene, quietScene } from './scene'
 import * as SPRITES from './sprites'
 
 const CATS: Cat[] = ['asleep', 'pacing', 'watching', 'startled', 'stretch']
 const PHASES: Phase[] = ['day', 'dusk', 'night']
 const TIME = { hour: 22, minute: 40, second: 5 }
-const ALL = PHASES.flatMap(phase => CATS.map(cat => roomState(cat, phase)))
+const ALL = PHASES.flatMap(phase => CATS.map(cat => quietScene(cat, phase)))
 
 test('every state builds a whole SVG that fills any screen, well under the limit', () => {
   for (const state of ALL) {
@@ -30,7 +29,7 @@ test('the scene is the same for the same state and time', () => {
 })
 
 test('each pose draws its own cat', () => {
-  const scene = (cat: Cat) => buildScene(roomState(cat, 'night'), TIME)
+  const scene = (cat: Cat) => buildScene(quietScene(cat, 'night'), TIME)
   expect(scene('asleep')).toContain('class="pr-b0"')
   expect(scene('asleep')).toContain('class="pr-z"')
   expect(scene('asleep')).not.toContain('class="pr-pc"')
@@ -46,13 +45,13 @@ test('each pose draws its own cat', () => {
 })
 
 test('the lamp glows from dusk on, never by day', () => {
-  expect(buildScene(roomState('asleep', 'night'), TIME)).toContain('class="pr-gl"')
-  expect(buildScene(roomState('asleep', 'dusk'), TIME)).toContain('class="pr-gl"')
-  expect(buildScene(roomState('asleep', 'day'), TIME)).not.toContain('class="pr-gl"')
+  expect(buildScene(quietScene('asleep', 'night'), TIME)).toContain('class="pr-gl"')
+  expect(buildScene(quietScene('asleep', 'dusk'), TIME)).toContain('class="pr-gl"')
+  expect(buildScene(quietScene('asleep', 'day'), TIME)).not.toContain('class="pr-gl"')
 })
 
 test('the clock shows the time it was drawn at, and keeps it after', () => {
-  const svg = buildScene(roomState('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
+  const svg = buildScene(quietScene('asleep', 'night'), { hour: 22, minute: 40, second: 0 })
   // 22:40 is the minute hand's ninth step and the hour hand's eleventh.
   const on = [...svg.matchAll(/class="pr-(mh|hh) pr-on" style="animation-delay:(-?\d+)s"/g)].map(m => [m[1], Number(m[2])])
   expect(on).toEqual([

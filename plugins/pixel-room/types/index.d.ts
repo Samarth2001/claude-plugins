@@ -3,7 +3,7 @@ export type RoomCard = {
   /** The cat's pose: asleep, pacing, watching, startled or stretch. */
   cat: 'asleep' | 'pacing' | 'watching' | 'startled' | 'stretch'
   /** The time of day the room shows. */
-  phase: 'day' | 'dusk' | 'night'
+  phase: 'dawn' | 'day' | 'dusk' | 'night'
   /** Main-loop turns finished this session. */
   turns: number
   /** The plant's mood after the session's latest test run. */
