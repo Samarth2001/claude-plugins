@@ -1,5 +1,5 @@
-// Synthesizes plugins/pixel-room/sounds/finish.wav and failure.wav: short, quiet,
-// lo-fi tones as 16-bit mono PCM, the same bytes on every run.
+// Synthesizes plugins/pixel-room/sounds/finish.wav, failure.wav and purr.wav:
+// short, quiet, lo-fi sounds as 16-bit mono PCM, the same bytes on every run.
 //
 //   node --experimental-strip-types scripts/assets/pixel-room-sounds.mts [--check]
 //
@@ -61,6 +61,50 @@ function render(voice: Voice, peak: number): Int16Array {
   return out
 }
 
+// A cat's purr: low noise, filtered dark, pulsing about 25 times a second, in
+// two soft breaths over 1.2 s. The noise is seeded, so the bytes never change.
+const PURR = { seconds: 1.2, pulse: 25, cutoff: 320, breaths: 2 }
+
+/** A small seeded generator (mulberry32): the same noise on every run. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function purr(peak: number): Int16Array {
+  const length = Math.round(RATE * PURR.seconds)
+  const random = seeded(7)
+  const raw = new Float64Array(length)
+  // Two passes of a one-pole low-pass leave a soft rumble of the white noise.
+  const alpha = 1 - Math.exp((-2 * Math.PI * PURR.cutoff) / RATE)
+  let low = 0
+  let lower = 0
+  let max = 0
+  for (let i = 0; i < length; i += 1) {
+    const t = i / RATE
+    low += alpha * (random() * 2 - 1 - low)
+    lower += alpha * (low - lower)
+    // The purr's flutter: a smooth pulse, never quite silent between beats.
+    const beat = 0.25 + 0.75 * Math.pow(0.5 - 0.5 * Math.cos(2 * Math.PI * PURR.pulse * t), 1.5)
+    // Each breath swells and fades, the second a little softer.
+    const breath = (t / PURR.seconds) * PURR.breaths
+    const swell = Math.pow(Math.sin(Math.PI * (breath % 1)), 2) * (breath < 1 ? 1 : 0.8)
+    // A low hum an octave above the pulse gives the rumble a body.
+    const hum = 0.35 * Math.sin(2 * Math.PI * PURR.pulse * 2 * t)
+    raw[i] = (lower * 6 + hum * 0.2) * beat * swell
+    max = Math.max(max, Math.abs(raw[i] ?? 0))
+  }
+  const out = new Int16Array(length)
+  for (let i = 0; i < length; i += 1) out[i] = Math.round(((raw[i] ?? 0) / max) * peak * 32767)
+  return out
+}
+
 function wav(samples: Int16Array): Buffer {
   const data = samples.length * 2
   const out = Buffer.alloc(44 + data)
@@ -84,6 +128,7 @@ function wav(samples: Int16Array): Buffer {
 const FILES: Record<string, Buffer> = {
   'plugins/pixel-room/sounds/finish.wav': wav(render(FINISH, 0.32)),
   'plugins/pixel-room/sounds/failure.wav': wav(render(FAILURE, 0.3)),
+  'plugins/pixel-room/sounds/purr.wav': wav(purr(0.3)),
 }
 
 const isCheck = process.argv.includes('--check')
