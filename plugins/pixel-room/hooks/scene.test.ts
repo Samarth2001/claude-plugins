@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 import { buildCard, buildGlance } from './card'
+import type { Cat, Phase, RoomView } from './model'
 import { pathData } from './pixels'
-import type { Cat, Phase } from './room'
 import { SCENE_LIMIT, buildScene, quietScene } from './scene'
 import * as SPRITES from './sprites'
 
@@ -88,11 +88,11 @@ test('runs merge across rows into one path', () => {
 
 test('the card and its glance are small pixel SVGs for every pose', () => {
   for (const cat of CATS) {
-    const view = { cat, phase: 'night' as const, turns: 3, plant: 'perky' as const, isWorking: true }
+    const view: RoomView = { cat, phase: 'night', weather: 'rain', moon: 0.5, turns: 3, plant: 'perky', isWorking: true, moths: 1, notes: { open: 2, active: 1, done: 1 }, flourish: 'none' }
     for (const svg of [buildCard(view), buildGlance(view)]) {
       expect(svg).toStartWith('<svg')
       expect(svg).toContain('shape-rendering="crispEdges"')
-      expect(svg.length).toBeLessThan(20_000)
+      expect(svg.length).toBeLessThan(24_000)
     }
   }
 })
