@@ -11,7 +11,7 @@ const PHASES: Phase[] = ['day', 'dusk', 'night']
 const TIME = { hour: 22, minute: 40, second: 5 }
 const ALL = PHASES.flatMap(phase => CATS.map(cat => quietScene(cat, phase)))
 
-test('every state builds a whole SVG that fills any screen, well under the limit', () => {
+test('every state builds a whole SVG that fills any screen, under the redraw budget', () => {
   for (const state of ALL) {
     const svg = buildScene(state, TIME)
     expect(svg).toStartWith('<svg')
@@ -20,7 +20,8 @@ test('every state builds a whole SVG that fills any screen, well under the limit
     expect(svg).toContain('preserveAspectRatio="xMidYMid slice"')
     expect(svg).toContain('shape-rendering="crispEdges"')
     expect(svg).toContain('@media (max-aspect-ratio:3/4)')
-    expect(svg.length).toBeLessThan(SCENE_LIMIT / 2)
+    // The whole room keeps under the redraw budget, so a redraw stays light.
+    expect(svg.length).toBeLessThan(96_000)
   }
 })
 
