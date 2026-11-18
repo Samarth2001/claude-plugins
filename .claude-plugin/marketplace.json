@@ -13,7 +13,7 @@
     {
       "name": "pixel-room",
       "source": "./plugins/pixel-room",
-      "description": "A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents, a band above the prompt and soft sounds",
+      "description": "A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents and soft sounds",
       "category": "themes",
       "tags": ["mod", "theme", "backdrop", "desktop"]
     },

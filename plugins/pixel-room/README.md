@@ -1,6 +1,6 @@
 # Pixel Room
 
-A late-night pixel room behind the conversation in the Claude desktop app. The day's weather falls past a tall window, the moon crosses it at night, fairy lights glow along its frame, a desk lamp lights at dusk, and an orange cat sleeps on the windowsill until Claude starts working. Then it gets up and paces, sits to watch while tools run, jumps at an error, and stretches before curling up again when the turn ends clean. Click it and it purrs. Claude's todo list hangs on a corkboard as sticky notes, its subagents circle the lamp as moths, and a slim band of the same room sits above the prompt. The room is drawn in one small palette of 17 colours, and the app's own colours, the working line, the footer and a small room card all come from it.
+A late-night pixel room behind the conversation in the Claude desktop app. The day's weather falls past a tall window, the moon crosses it at night, fairy lights glow along its frame, a desk lamp lights at dusk, and an orange cat sleeps on the windowsill until Claude starts working. Then it gets up and paces, sits to watch while tools run, jumps at an error, and stretches before curling up again when the turn ends clean. Click it and it purrs. Claude's todo list hangs on a corkboard as sticky notes, and its subagents circle the lamp as moths. The room is drawn in one small palette of 17 colours, and the app's own colours, the working line, the footer and a small room card all come from it.
 
 ![A pixel room at night: rain and the moon at a tall window under fairy lights, an orange cat sitting up on the rug to watch, a lit desk lamp with a moth, a monitor of scrolling code, a wall calendar and a corkboard of sticky notes](assets/preview.svg)
 
@@ -77,10 +77,6 @@ From dusk on, the app's colours turn warmer, with text the colour of old paper. 
 
 The backdrop is redrawn only when the cat moves (at most four times a turn: its start, first tool call, first error and end), when the time of day or the date turns, when the monitor goes back to its screensaver, for a pet or a paper plane, and for a `/pixel-room` command. Changes to the notes and the moths wait a few seconds and share one redraw, so the backdrop is never redrawn on every tool call. Subagents' turns and tool calls don't move the cat.
 
-## The band
-
-In the desktop and mobile apps a slim animated strip of the room sits above the prompt: a tiny window with the day's weather, the cat on a long sill (asleep, pacing, watching or startled, as in the room), fairy lights along the top from dusk to dawn, and at the right the session's mugs, notes, plant and moths. Hearts and the paper plane play there too. Collapse the band and it reads "Pixel Room". `/pixel-room band off` puts it away, here and in later sessions, and `/pixel-room band on` brings it back. The terminal draws no band.
-
 ## The rest of the window
 
 - **Working line**: while Claude works, the line that usually shows a made-up word says something about the room instead, such as "The cat is pacing", "Rain on the glass", "Snow on the sill", "Moon over the city", "First light", "Moths at the lamp" or "Ticking off a note". One phrase is chosen per turn for each thing the turn does. In the desktop app only the plain "Working" is replaced, so the names of steps stay. A message the app shows there, such as compacting, is never changed.
@@ -92,7 +88,7 @@ In the desktop and mobile apps a slim animated strip of the room sits above the 
   - a plant that perks up after a passing test run and droops after a failing one
   - a tiny corkboard of notes while a list runs
 
-  `/pixel-room card` opens it. In the desktop app, while the band is put away, it also opens by itself as a small widget showing just the portrait, once a session; with the band on, the band takes its place. Expanded or docked, it shows the whole card. In the terminal it is two lines of text.
+  `/pixel-room card` opens it; it never opens by itself. As a small widget in the desktop app it shows just the portrait, and expanded or docked the whole card. In the terminal it is two lines of text.
 - **Sounds**: a soft rising chime when a turn ends clean, a soft low falling tone when its last tool call failed, its latest test run failed, or an API error ended it, and a quiet purr when you pet the cat. Nothing plays when you stop a turn.
 
 A test run is a Bash or PowerShell command such as `npm test`, `pytest`, `cargo test` or `go test`.
@@ -106,14 +102,12 @@ A test run is a Bash or PowerShell command such as `npm test`, `pytest`, `cargo 
 | `/pixel-room weather` | Says today's weather and the moon |
 | `/pixel-room weather rain\|drizzle\|snow\|fog\|clear` | Pins that weather, here and in later sessions |
 | `/pixel-room weather auto` | Goes back to the day's own weather (`weather day` does the same) |
-| `/pixel-room band off` | Puts the band above the prompt away, here and in later sessions |
-| `/pixel-room band on` | Brings the band back |
 | `/pixel-room card` | Opens the room card |
-| `/pixel-room card off` | Puts the card away and stops it opening by itself, here and in later sessions |
-| `/pixel-room card on` | Brings the card back |
+| `/pixel-room card off` | Puts the card away |
+| `/pixel-room card on` | Opens the card as a small widget |
 | `/pixel-room mute` | Turns the sounds off, here and later |
 | `/pixel-room unmute` | Brings the sounds back |
-| `/pixel-room off` | Turns off the room, its band, card, working line, turn line, footer label and sounds, here and in later sessions |
+| `/pixel-room off` | Turns off the room, its card, working line, turn line, footer label and sounds, here and in later sessions |
 | `/pixel-room on` | Brings the room back |
 | `/pixel-room glass clear\|soft\|frosted` | How much veil sits over the room behind the chat: none, a light one (the default), or the full frost. Kept across sessions. |
 | `/pixel-room forget` | Deletes its settings and turns it off for this session. Run it before removing the plugin |
@@ -122,15 +116,15 @@ To try it beside the other themes and switch between them, install the [`themes`
 
 ## Where it shows
 
-- The backdrop, the colours and the widget need the Claude desktop app's Code tab; the backdrop, the colours and the band also show in the mobile app. Set the app's appearance to dark: the room and its colours are dark.
+- The backdrop, the colours and the widget need the Claude desktop app's Code tab; the backdrop and the colours also show in the mobile app. Set the app's appearance to dark: the room and its colours are dark.
 - Clicking the room to pet the cat needs Claude Code v2.1.326 or later, where the app passes a click on the backdrop to the room. Anywhere else, `/pixel-room pet` does the same.
-- The working line, the footer label and the room card also show in the terminal, where the card is plain text, and the turn line shows only there. The terminal draws no backdrop and no band.
+- The working line, the footer label and the room card also show in the terminal, where the card is plain text, and the turn line shows only there. The terminal draws no backdrop.
 - Sounds play on macOS, where Claude Code plays clips with `afplay`. A Linux or Windows terminal has no player, so there they play nothing.
 - It needs Claude Code v2.1.324 or later.
 
 ## What it stores and reads
 
-- It stores five settings in the plugin's own store on your machine: whether the room is off, whether sounds are muted, whether the card is put away, whether the band is put away, and a pinned weather. The cups, the tape, the plant's mood, the notes and the moths last for the session only.
+- It stores four settings in the plugin's own store on your machine: whether the room is off, whether sounds are muted, the glass, and a pinned weather. Settings an earlier version kept for the band and for the card opening by itself are deleted when a session starts. The cups, the tape, the plant's mood, the notes and the moths last for the session only.
 - It reads whether each tool call errored, whether a Bash or PowerShell command looks like a test run, and whether a Bash command is a `git push`. It reads the statuses in Claude's todo list (TodoWrite) and task list (TaskCreate and TaskUpdate), only to count them, and when each Agent tool call starts and ends. It reads the local time for the time of day, the date, the season, the weather, the moon and the clock, and your time zone's name to tell north from south.
 - It never reads file contents, the text of the todo list or tasks, your prompts or Claude's replies, and it sends nothing anywhere.
 
@@ -141,7 +135,7 @@ To try it beside the other themes and switch between them, install the [`themes`
 - A subagent started in the background returns at once, so its moth may not show.
 - A session has one theme. Another theme mod replaces this one, and setting this one replaces the other.
 - `/pixel-room off` clears whichever theme stands, not only this one. `/pixel-room forget` clears it only while the room is on.
-- With reduced motion turned on in your system, the room, the band and the card are still: no rain, no snow, no pacing, no breathing, steady fairy lights, no hearts or plane, and the clock shows the time the room was last drawn.
+- With reduced motion turned on in your system, the room and the card are still: no rain, no snow, no pacing, no breathing, steady fairy lights, no hearts or plane, and the clock shows the time the room was last drawn.
 - On a square window the window and the desk move toward the middle. On a tall phone screen the window moves up and the bookcase, the floor light, the clock, the plant shelf, the calendar and the corkboard are left out, so the window and the desk both fit.
 
 ## Develop
@@ -154,15 +148,15 @@ claude plugin test plugins/pixel-room
 claude --plugin-dir plugins/pixel-room     # try it, hot-reloads on save
 ```
 
-- `hooks/model.ts` holds the shared vocabulary: what the scene, the band and the card are drawn from.
+- `hooks/model.ts` holds the shared vocabulary: what the scene and the card are drawn from.
 - `hooks/sky.ts` works out the time of day, the season, the day's weather and the moon.
 - `hooks/palette.ts` holds the 17 colours, `hooks/paint.ts` the shared dither patterns and `hooks/pixels.ts` turns pixel maps into compact SVG paths.
 - `hooks/scene.ts` lays out the room from its parts: `hooks/shell.ts` (wall and floor), `hooks/window.ts` (the window wall and the weather), `hooks/desk.ts` (the desk wall) and `hooks/cat.ts` (the cat). `hooks/font.ts` is the small pixel font and `hooks/sprites.ts` holds the cat's frames.
-- `hooks/band.ts` builds the band and `hooks/card.ts` the card.
+- `hooks/card.ts` builds the card, with `hooks/vista.ts` drawing its tiny window.
 - `hooks/room.ts` holds the turn's small decisions and the room's words.
 - `hooks/look.ts` holds the app's colours.
 - `hooks/register.tsx` wires the events, the command, the clock, the redraws and the theme.
-- `types/index.d.ts` declares the state the band and card read.
+- `types/index.d.ts` declares the state the card reads.
 
 The preview above is the scene exactly as the plugin draws it on a rainy night while Claude works through a todo list with a subagent running. The sounds in `sounds/` are synthesized. After changing the scene or the sounds, make them again:
 

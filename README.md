@@ -35,7 +35,7 @@ Installed plugins also load in the Claude desktop app (Code tab, local sessions)
 | Plugin | Install id | Type | What it does |
 | --- | --- | --- | --- |
 | [HUD](plugins/hud) | `hud` | mods | A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane |
-| [Pixel Room](plugins/pixel-room) | `pixel-room` | themes | A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents, a band above the prompt and soft sounds |
+| [Pixel Room](plugins/pixel-room) | `pixel-room` | themes | A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents and soft sounds |
 | [Themes](plugins/themes) | `themes` | mods | A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button |
 <!-- catalog:end -->
 

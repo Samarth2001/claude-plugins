@@ -7,7 +7,7 @@
 // portrait's wall. Drawn on the same grid and palette as the room; pure for
 // its input.
 
-import { miniWindow, miniWindowCss, WINDOW_W } from './band'
+import { miniWindow, miniWindowCss, WINDOW_W } from './vista'
 import type { Plant, RoomView } from './model'
 import { NO_NOTES } from './model'
 import { PAL } from './palette'

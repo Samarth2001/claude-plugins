@@ -1,4 +1,4 @@
-// What the band above the prompt and the room card draw from, held in $.state
+// What the room card draws from, held in $.state
 // for the session. A contract stands alone, so this repeats hooks/model.ts's
 // RoomView field for field; register.tsx fails to compile if the two part.
 
@@ -21,7 +21,7 @@ export type RoomCard = {
   moths: number
   /** Claude's todo list as notes: how many are waiting, under way and done. */
   notes: { open: number; active: number; done: number }
-  /** A one-shot the band plays once while it is set: hearts after a pet, a paper plane after a push. */
+  /** A one-shot the card plays once while it is set: hearts after a pet, a paper plane after a push. */
   flourish: 'none' | 'plane' | 'pet'
 }
 

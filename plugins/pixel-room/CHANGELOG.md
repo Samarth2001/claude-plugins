@@ -2,6 +2,13 @@
 
 All notable changes to pixel-room. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pixel-room--v<version>`.
 
+## [0.3.0] - 2026-11-18
+
+### Removed
+
+- The band above the prompt and `/pixel-room band`. It repeated what the room behind the chat already shows, in the place you look while you type.
+- The room card no longer opens by itself. `/pixel-room card` opens it, `card on` opens it as a small widget and `card off` puts it away. The settings kept for the band and for the card opening by itself are deleted when a session starts.
+
 ## [0.2.2] - 2026-11-18
 
 ### Fixed
@@ -79,6 +86,7 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.
 
+[0.3.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.3.0
 [0.2.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.2
 [0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.1
 [0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.0
