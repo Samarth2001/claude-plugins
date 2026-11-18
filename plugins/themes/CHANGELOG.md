@@ -2,6 +2,12 @@
 
 All notable changes to themes. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `themes--v<version>`.
 
+## [0.2.1] - 2026-11-18
+
+### Fixed
+
+- A tidier band: each tile's title and author sit centred under its picture, the page arrows sit either side of the page count, and Cancel and Keep stay at the right, apart from the theme's options and Remove.
+
 ## [0.2.0] - 2026-11-18
 
 ### Removed
@@ -26,6 +32,7 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.
 - At a session's start, where the kept theme is on alongside another, the other is turned off.
 
+[0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.1
 [0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.0
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.0

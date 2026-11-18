@@ -250,6 +250,10 @@ function shelf(w: number, y: number): string {
   return new Layer().rect(1, y, w - 2, 1, P.rust).rect(1, y + 1, w - 2, 1, P.umber).rect(2, y + 2, w - 3, 1, P.ink).svg()
 }
 
+/** The card's and the glance's sizes in CSS pixels: what their Svgs are drawn at. */
+export const CARD_SIZE = { width: 76 * SCALE, height: 60 * SCALE }
+export const GLANCE_SIZE = { width: 48 * SCALE, height: 34 * SCALE }
+
 /** The whole card: portrait over the instruments on their shelf. */
 export function buildCard(view: RoomView): string {
   const w = 76

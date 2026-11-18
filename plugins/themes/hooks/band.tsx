@@ -65,12 +65,21 @@ function arrows(ui: ElementTable, count: number, index: number, act: Actions): R
   ]
 }
 
+/** The pages' arrows with the count between them, so the way to page and where you are sit together. */
+function pager(ui: ElementTable, count: number, index: number, act: Actions): RenderElement[] {
+  const { Text } = ui
+  const [prev, next] = arrows(ui, count, index, act)
+  if (prev === undefined || next === undefined) return []
+  return [prev, <Text dimColor>{`${index + 1}/${count}`}</Text>, next]
+}
+
 function pictureTile(ui: ElementTable<'desktop'>, tile: Tile, view: View, act: Actions): RenderElement {
   const { Box, Text, Button, Svg } = ui
   const isPicked = tile.id === view.band.picked
   const isOn = tile.id === view.active
   return (
-    <Box flexDirection="column" width={TILE_COLUMNS - 1}>
+    // Centred under the picture: the title's button carries its own padding, and centring keeps it level with the line below.
+    <Box flexDirection="column" alignItems="center" width={TILE_COLUMNS - 1}>
       <Svg
         source={thumbnailSvg(tile.entry.thumbnail, tile.title, { isPicked })}
         alt={tile.isGroup ? `${tile.title}, themes by ${tile.author}` : `${tile.title} by ${tile.author}`}
@@ -185,14 +194,16 @@ function detail(ui: ElementTable, view: View, act: Actions, columns: number): Re
     )
 
   // Wide: one line. Narrow: the name and the note, then the controls.
+  // Wide: one line, the theme and its controls at the left, Cancel and Keep at the right.
+  // Narrow: the name and the note, then the controls, with Cancel and Keep still held to the right.
   if (columns >= 100) {
     return [
-      <Box flexDirection="row" justifyContent="space-between">
-        <Box flexDirection="row" gap={2}>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={2}>
+        <Box flexDirection="row" alignItems="center" gap={2}>
           {name}
           {middle}
         </Box>
-        <Box flexDirection="row" gap={1}>
+        <Box flexDirection="row" alignItems="center" gap={1}>
           {noteText}
           {ends}
         </Box>
@@ -200,13 +211,17 @@ function detail(ui: ElementTable, view: View, act: Actions, columns: number): Re
     ]
   }
   return [
-    <Box flexDirection="row" gap={2}>
+    <Box flexDirection="row" alignItems="center" gap={2}>
       {name}
       {noteText}
     </Box>,
-    <Box flexDirection="row" gap={2} flexWrap="wrap">
-      {middle}
-      {ends}
+    <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" columnGap={2} rowGap={1}>
+      <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={2} rowGap={1}>
+        {middle}
+      </Box>
+      <Box flexDirection="row" alignItems="center" gap={1}>
+        {ends}
+      </Box>
     </Box>,
   ]
 }
@@ -223,14 +238,11 @@ export function drawBand(ui: ElementTable, view: View, act: Actions, room: Room)
   if (isPictures) {
     const desktop = ui as ElementTable<'desktop'>
     rows.push(
-      <Box flexDirection="row" justifyContent="space-between">
-        <Box flexDirection="row" gap={2}>
-          <Text bold>Themes</Text>
-          {pageText === '' ? null : <Text dimColor>{pageText}</Text>}
-        </Box>
-        <Box flexDirection="row" gap={1}>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+        <Text bold>Themes</Text>
+        <Box flexDirection="row" alignItems="center" gap={1}>
           {install}
-          {arrows(ui, count, index, act)}
+          {pager(ui, count, index, act)}
         </Box>
       </Box>,
       <Box flexDirection="row" gap={1}>

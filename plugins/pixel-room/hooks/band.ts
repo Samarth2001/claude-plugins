@@ -41,6 +41,11 @@ export function bandWidth(columns: number): number {
   return Math.min(640, Math.max(120, Math.round(n * 3.75)))
 }
 
+/** The band's size in CSS pixels for a band `columns` cells wide: what its Svg is drawn at, so the app gives it no box of its own size. */
+export function bandSize(columns: number): { width: number; height: number } {
+  return { width: bandWidth(columns) * SCALE, height: BAND_HEIGHT * SCALE }
+}
+
 const draw = (rows: readonly string[], x: number, y: number, attributes = '') => new Layer().sprite(rows, CAT_KEYS, x, y).svg(attributes)
 
 // The tiny window. Shared with the card, which passes its own prefix, so
