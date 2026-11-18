@@ -193,6 +193,21 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
+  test(`${surface}: Pixel Room's weather and band drive its own command`, async ($, on) => {
+    const w = world()
+    engine(on, w)
+    await $.session.start(start)
+    await themes($)
+    const ui = await $.ui.mount(BAND(surface))
+    await ui.press({ key: 'tile:pixel-room' })
+    await ui.select({ key: 'opt:pixel-room:weather', value: 'snow' })
+    await ui.select({ key: 'opt:pixel-room:band', value: 'off' })
+    await ui.select({ key: 'opt:pixel-room:weather', value: 'today' })
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room weather snow', '/pixel-room band off', '/pixel-room weather auto'])
+    expect(w.store.get('settings')).toEqual({ 'pixel-room': { weather: 'today', band: 'off' } })
+    await ui.unmount()
+  })
+
   test(`${surface}: Install runs claude plugin install, and asks for /reload-plugins`, async ($, on) => {
     const w = world(['constellation'])
     engine(on, w)
