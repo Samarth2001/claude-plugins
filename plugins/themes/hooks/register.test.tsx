@@ -18,7 +18,7 @@ type World = {
   exitCode: number
 }
 
-const world = (plugins: string[] = ['constellation', 'real-sky', 'pixel-room']): World => ({
+const world = (plugins: string[] = ['pixel-room']): World => ({
   store: new Map(),
   plugins,
   runs: [],
@@ -27,8 +27,6 @@ const world = (plugins: string[] = ['constellation', 'real-sky', 'pixel-room']):
 })
 
 const COMMAND_OF: Record<string, string> = {
-  constellation: 'constellation',
-  'real-sky': 'real-sky',
   'pixel-room': 'pixel-room',
   'theme-examples': 'custom-theme',
 }
@@ -81,14 +79,14 @@ const themes = ($: { command: { run: (e: never) => Promise<{ text?: string }> } 
 
 for (const surface of SURFACES) {
   test(`${surface}: /themes opens a strip of every theme, each tagged with its author`, async ($, on) => {
-    const w = world(['constellation', 'real-sky', 'pixel-room', 'theme-examples'])
+    const w = world(['pixel-room', 'theme-examples'])
     engine(on, w)
     await $.session.start(start)
     expect((await themes($)).text).toBe('Pick a theme in the band above the prompt.')
 
-    // Wide enough for one page of all 23.
+    // Wide enough for one page of all 21.
     const ui = await $.ui.mount(BAND(surface, 1000))
-    for (const id of ['constellation', 'real-sky', 'pixel-room', 'honu-lagoon', 'ember']) {
+    for (const id of ['pixel-room', 'honu-lagoon', 'ember']) {
       expect(await ui.find({ key: `tile:${id}` })).toBeDefined()
     }
     const words = (await ui.findAll({ type: 'Text' })).map(t => t.text ?? '').join(' ')
@@ -100,18 +98,18 @@ for (const surface of SURFACES) {
   })
 
   test(`${surface}: picking tries a theme live, and the next pick turns the last one off first`, async ($, on) => {
-    const w = world()
+    const w = world(['pixel-room', 'theme-examples'])
     engine(on, w)
     await $.session.start(start)
     await themes($)
     const ui = await $.ui.mount(BAND(surface))
 
-    await ui.press({ key: 'tile:constellation' })
-    expect(w.runs).toEqual(['/constellation on'])
-    await ui.press({ key: 'tile:real-sky' })
-    expect(w.runs).toEqual(['/constellation on', '/constellation off', '/real-sky on'])
+    await ui.press({ key: 'tile:pixel-room' })
+    expect(w.runs).toEqual(['/pixel-room on'])
+    await ui.press({ key: 'tile:honu-lagoon' })
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room off', '/custom-theme honu-lagoon session'])
     // Picking the theme that is already on runs nothing.
-    await ui.press({ key: 'tile:real-sky' })
+    await ui.press({ key: 'tile:honu-lagoon' })
     expect(w.runs).toHaveLength(3)
     await ui.unmount()
   })
@@ -141,21 +139,21 @@ for (const surface of SURFACES) {
   })
 
   test(`${surface}: Cancel puts back the theme that was on`, async ($, on) => {
-    const w = world()
+    const w = world(['pixel-room', 'theme-examples'])
     engine(on, w)
     await $.session.start(start)
     await themes($)
     let ui = await $.ui.mount(BAND(surface))
-    await ui.press({ key: 'tile:constellation' })
+    await ui.press({ key: 'tile:pixel-room' })
     await ui.press({ key: 'keep' })
     await ui.unmount()
 
     await themes($)
     ui = await $.ui.mount(BAND(surface))
-    await ui.press({ key: 'tile:pixel-room' })
+    await ui.press({ key: 'tile:honu-lagoon' })
     await ui.press({ key: 'cancel' })
-    expect(w.runs).toEqual(['/constellation on', '/constellation off', '/pixel-room on', '/pixel-room off', '/constellation on'])
-    expect(w.store.get('chosen')).toBe('constellation')
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room off', '/custom-theme honu-lagoon session', '/custom-theme off', '/pixel-room on'])
+    expect(w.store.get('chosen')).toBe('pixel-room')
     expect(await ui.find({ key: 'cancel' })).toBeUndefined()
     await ui.unmount()
   })
@@ -166,35 +164,30 @@ for (const surface of SURFACES) {
     await $.session.start(start)
     await themes($)
     const ui = await $.ui.mount(BAND(surface))
-    await ui.press({ key: 'tile:real-sky' })
+    await ui.press({ key: 'tile:pixel-room' })
     await ui.press({ key: 'cancel' })
-    expect(w.runs).toEqual(['/real-sky on', '/real-sky off'])
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room off'])
     expect(w.store.has('chosen')).toBe(false)
     await ui.unmount()
   })
 
-  test(`${surface}: a theme's options drive its own command, and an action asks first`, async ($, on) => {
+  test(`${surface}: a theme's options drive its own command`, async ($, on) => {
     const w = world()
     engine(on, w)
     await $.session.start(start)
     await themes($)
     const ui = await $.ui.mount(BAND(surface))
-    await ui.press({ key: 'tile:real-sky' })
-    await ui.select({ key: 'opt:real-sky:phase', value: 'dusk' })
-    await ui.select({ key: 'opt:real-sky:almanac', value: 'off' })
-    expect(w.runs).toEqual(['/real-sky on', '/real-sky dusk', '/real-sky almanac off'])
-    expect(w.store.get('settings')).toEqual({ 'real-sky': { phase: 'dusk', almanac: 'off' } })
-
-    await ui.press({ key: 'tile:constellation' })
-    await ui.press({ key: 'act:constellation:reset' })
-    expect(w.runs.at(-1)).toBe('/constellation on')
-    await ui.press({ key: 'confirm' })
-    expect(w.runs.at(-1)).toBe('/constellation reset')
+    await ui.press({ key: 'tile:pixel-room' })
+    await ui.select({ key: 'opt:pixel-room:glass', value: 'clear' })
+    await ui.select({ key: 'opt:pixel-room:card', value: 'off' })
+    await ui.select({ key: 'opt:pixel-room:sound', value: 'off' })
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room glass clear', '/pixel-room card off', '/pixel-room mute'])
+    expect(w.store.get('settings')).toEqual({ 'pixel-room': { glass: 'clear', card: 'off', sound: 'off' } })
     await ui.unmount()
   })
 
   test(`${surface}: Install runs claude plugin install, and asks for /reload-plugins`, async ($, on) => {
-    const w = world(['constellation'])
+    const w = world(['pixel-room'])
     engine(on, w)
     await $.session.start(start)
     await themes($)
@@ -236,34 +229,34 @@ for (const surface of SURFACES) {
     await themes($)
     const ui = await $.ui.mount(BAND(surface))
     await ui.press({ key: 'install-ours' })
-    expect(w.argv.map(argv => argv[3])).toEqual(['constellation@samarth', 'real-sky@samarth', 'pixel-room@samarth'])
-    expect(await ui.find({ type: 'Text', text: /claude plugin install constellation@samarth/ })).toBeDefined()
+    expect(w.argv.map(argv => argv[3])).toEqual(['pixel-room@samarth'])
+    expect(await ui.find({ type: 'Text', text: /claude plugin install pixel-room@samarth/ })).toBeDefined()
     await ui.unmount()
   })
 }
 
 test('a narrow band pages its tiles, and the arrows move through them', async ($, on) => {
-  const w = world(['constellation', 'real-sky', 'pixel-room', 'theme-examples'])
+  const w = world(['pixel-room', 'theme-examples'])
   engine(on, w)
   await $.session.start(start)
   await themes($)
 
   const wide = await $.ui.mount(BAND('desktop', 400))
-  expect(await wide.findAll({ type: 'Svg' })).toHaveLength(23)
+  expect(await wide.findAll({ type: 'Svg' })).toHaveLength(21)
   expect(await wide.find({ key: 'next' })).toBeUndefined()
   await wide.unmount()
 
   const narrow = await $.ui.mount(BAND('desktop', 50))
   expect(await narrow.findAll({ type: 'Svg' })).toHaveLength(3)
-  expect(await narrow.find({ key: 'tile:constellation' })).toBeDefined()
+  expect(await narrow.find({ key: 'tile:pixel-room' })).toBeDefined()
   await narrow.press({ key: 'next' })
-  expect(await narrow.find({ key: 'tile:constellation' })).toBeUndefined()
-  expect(await narrow.find({ key: 'tile:honu-lagoon' })).toBeDefined()
+  expect(await narrow.find({ key: 'tile:pixel-room' })).toBeUndefined()
+  expect(await narrow.find({ key: 'tile:halftone-dawn' })).toBeDefined()
   await narrow.unmount()
 
   const terminal = await $.ui.mount(BAND('terminal', 60))
   expect(await terminal.find({ key: 'next' })).toBeDefined()
-  expect((await terminal.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('tile:')).length).toBeLessThan(23)
+  expect((await terminal.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('tile:')).length).toBeLessThan(21)
   await terminal.unmount()
 })
 
@@ -282,7 +275,7 @@ test('the band yields to a survey, never shows unasked, and keeps to its rows', 
   await survey.unmount()
 
   const short = await $.ui.mount(BAND('terminal', 60, 1))
-  expect(await short.find({ key: 'tile:constellation' })).toBeDefined()
+  expect(await short.find({ key: 'tile:pixel-room' })).toBeDefined()
   expect(await short.find({ key: 'cancel' })).toBeUndefined()
   await short.unmount()
 })
@@ -292,33 +285,33 @@ test('/themes list names every theme with its author; /themes <name> switches fr
   const clock = engine(on, w)
   await $.session.start(start)
   const list = (await themes($, 'list')).text ?? ''
-  expect(list).toContain('constellation')
-  expect(list).toContain('Real Sky, by Samarth (installed)')
+  expect(list).toContain('pixel-room')
+  expect(list).toContain('Pixel Room, by Samarth (installed)')
   expect(list).toContain('Honu Lagoon, by Anthropic (not installed)')
 
-  expect((await themes($, 'Real Sky')).text).toBe('Switching to Real Sky, by Samarth.')
+  expect((await themes($, 'Pixel Room')).text).toBe('Switching to Pixel Room, by Samarth.')
   await clock.advance(1)
-  expect(w.runs).toEqual(['/real-sky on'])
-  expect(w.store.get('chosen')).toBe('real-sky')
+  expect(w.runs).toEqual(['/pixel-room on'])
+  expect(w.store.get('chosen')).toBe('pixel-room')
 
   expect((await themes($, 'honu-lagoon')).text).toContain('not installed')
   expect((await themes($, 'nope')).text).toBe('No theme named "nope". /themes list names them all.')
 
   expect((await themes($, 'off')).text).toBe('Turning the theme off.')
   await clock.advance(1)
-  expect(w.runs).toEqual(['/real-sky on', '/real-sky off'])
+  expect(w.runs).toEqual(['/pixel-room on', '/pixel-room off'])
   expect(w.store.has('chosen')).toBe(false)
 })
 
 test("an Anthropic scene is tried for this session, and Keep applies it with the scope chosen", async ($, on) => {
-  const w = world(['constellation', 'theme-examples'])
+  const w = world(['pixel-room', 'theme-examples'])
   engine(on, w)
   await $.session.start(start)
   await themes($)
   const ui = await $.ui.mount(BAND('desktop', 400))
-  await ui.press({ key: 'tile:constellation' })
+  await ui.press({ key: 'tile:pixel-room' })
   await ui.press({ key: 'tile:night-reef' })
-  expect(w.runs).toEqual(['/constellation on', '/constellation off', '/custom-theme night-reef session'])
+  expect(w.runs).toEqual(['/pixel-room on', '/pixel-room off', '/custom-theme night-reef session'])
   // Keep for this project by default.
   await ui.press({ key: 'keep' })
   expect(w.runs.at(-1)).toBe('/custom-theme night-reef')
@@ -338,22 +331,23 @@ test('a start with a kept theme runs no theme command, however long it waits', a
 
 test('only the kept theme draws: another catalog theme is held until it is turned on', async () => {
   const pixel = entryOf('pixel-room')
-  const found = ['constellation', 'real-sky', 'pixel-room']
-  expect(isHeld('constellation', pixel, found, new Set())).toBe(true)
-  expect(isHeld('real-sky', pixel, found, new Set())).toBe(true)
+  const reef = entryOf('night-reef')
+  const found = ['pixel-room', 'theme-examples']
+  expect(isHeld('theme-examples', pixel, found, new Set())).toBe(true)
+  expect(isHeld('pixel-room', reef, found, new Set())).toBe(true)
   expect(isHeld('pixel-room', pixel, found, new Set())).toBe(false)
   // Turned on by the person or the picker this session.
-  expect(isHeld('real-sky', pixel, found, new Set(['real-sky']))).toBe(false)
+  expect(isHeld('theme-examples', pixel, found, new Set(['theme-examples']))).toBe(false)
   // Nothing kept, the kept theme not loaded, or a theme outside the catalog: nothing is held.
-  expect(isHeld('real-sky', undefined, found, new Set())).toBe(false)
-  expect(isHeld('real-sky', pixel, ['real-sky'], new Set())).toBe(false)
+  expect(isHeld('theme-examples', undefined, found, new Set())).toBe(false)
+  expect(isHeld('theme-examples', pixel, ['theme-examples'], new Set())).toBe(false)
   expect(isHeld('someone-else', pixel, found, new Set())).toBe(false)
 })
 
 test("a typed command that turns a theme on names its plugin; an option or off does not", async () => {
-  expect(turnsOnBy('real-sky', 'on')).toBe('real-sky')
+  expect(turnsOnBy('pixel-room', 'on')).toBe('pixel-room')
   expect(turnsOnBy('custom-theme', 'night-reef')).toBe('theme-examples')
   expect(turnsOnBy('custom-theme', 'night-reef session')).toBe('theme-examples')
-  expect(turnsOnBy('real-sky', 'off')).toBeUndefined()
+  expect(turnsOnBy('pixel-room', 'off')).toBeUndefined()
   expect(turnsOnBy('pixel-room', 'glass clear')).toBeUndefined()
 })

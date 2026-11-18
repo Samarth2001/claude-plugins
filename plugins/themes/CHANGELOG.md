@@ -2,6 +2,12 @@
 
 All notable changes to themes. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `themes--v<version>`.
 
+## [0.2.0] - 2026-11-18
+
+### Removed
+
+- Constellation and Real Sky, which have left the marketplace. The picker lists Pixel Room and Anthropic's twenty scenes.
+
 ## [0.1.1] - 2026-11-17
 
 ### Fixed
@@ -20,5 +26,6 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.
 - At a session's start, where the kept theme is on alongside another, the other is turned off.
 
+[0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.0
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.0

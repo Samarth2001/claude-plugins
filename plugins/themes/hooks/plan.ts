@@ -35,7 +35,7 @@ export function isHeld(plugin: string, chosen: Entry | undefined, found: readonl
   return PLUGINS.includes(plugin) && found.includes(chosen.plugin)
 }
 
-/** The plugin a typed theme command turns on (`/real-sky on`, `/custom-theme night-reef`), if it turns one on. */
+/** The plugin a typed theme command turns on (`/pixel-room on`, `/custom-theme night-reef`), if it turns one on. */
 export function turnsOnBy(command: string, args: string): string | undefined {
   const words = args.trim().toLowerCase().replace(/\s+/g, ' ')
   const entry = CATALOG.find(en => en.command === command && (words === en.on || words === en.id || words.startsWith(`${en.id} `)))

@@ -11,20 +11,6 @@
       "tags": ["mod", "usage", "cost", "limits", "dashboard"]
     },
     {
-      "name": "constellation",
-      "source": "./plugins/constellation",
-      "description": "A night sky behind the desktop app that maps your work: every file Claude touches becomes a star, and files edited together join into constellations that build up per project",
-      "category": "themes",
-      "tags": ["mod", "theme", "backdrop", "desktop"]
-    },
-    {
-      "name": "real-sky",
-      "source": "./plugins/real-sky",
-      "description": "A quiet sky almanac behind the desktop app: the sun and moon ride an hour arc at your local time, the colors follow the light, and the weather and a barometer follow the session",
-      "category": "themes",
-      "tags": ["mod", "theme", "backdrop", "desktop"]
-    },
-    {
       "name": "pixel-room",
       "source": "./plugins/pixel-room",
       "description": "A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents, a band above the prompt and soft sounds",
@@ -39,5 +25,5 @@
       "tags": ["mod", "theme", "picker", "backdrop"]
     }
   ],
-  "renames": { "buddy": "hud" }
+  "renames": { "buddy": "hud", "constellation": null, "real-sky": null }
 }

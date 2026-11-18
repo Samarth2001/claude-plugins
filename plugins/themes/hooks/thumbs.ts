@@ -32,46 +32,6 @@ const frame = (body: string, label: string, ring: Ring) => {
   )
 }
 
-function constellation(ring: Ring): string {
-  const dust = scatter(46, 7)
-    .map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${(0.35 + r * 0.5).toFixed(2)}" fill="#dfe7ff" opacity="${(0.25 + r * 0.5).toFixed(2)}"/>`)
-    .join('')
-  const figure: [number, number][] = [
-    [34, 22],
-    [30, 52],
-    [62, 72],
-    [92, 72],
-  ]
-  const second: [number, number][] = [
-    [112, 46],
-    [138, 80],
-  ]
-  const line = (points: [number, number][]) =>
-    `<polyline points="${points.map(p => p.join(',')).join(' ')}" fill="none" stroke="#c9d4ff" stroke-opacity=".45" stroke-width=".7"/>`
-  const stars = [...figure, ...second].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.5" fill="#fff"/>`).join('')
-  return frame(
-    `<rect width="${W}" height="${H}" fill="#0a0d1f"/>` +
-      `<radialGradient id="g" cx=".9" cy="1" r=".7"><stop offset="0" stop-color="#2b2f72" stop-opacity=".55"/><stop offset="1" stop-color="#0a0d1f" stop-opacity="0"/></radialGradient>` +
-      `<rect width="${W}" height="${H}" fill="url(#g)"/>${dust}${line(figure)}${line(second)}${stars}` +
-      `<circle cx="138" cy="80" r="4.5" fill="#93a6ff" opacity=".35"/>`,
-    'A night sky with two small constellations',
-    ring,
-  )
-}
-
-function realSky(ring: Ring): string {
-  return frame(
-    `<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34405e"/><stop offset=".6" stop-color="#5c6585"/><stop offset="1" stop-color="#8f7a8c"/></linearGradient>` +
-      `<rect width="${W}" height="${H}" fill="url(#s)"/>` +
-      `<path d="M30 104 Q 70 30 168 22" fill="none" stroke="#e8ecf6" stroke-opacity=".7" stroke-width=".8"/>` +
-      `<g stroke="#ece7df" stroke-linecap="round" opacity=".35"><path d="M-4 40 H74" stroke-width="2.2"/><path d="M26 45 H102" stroke-width="1.4"/><path d="M52 70 H140" stroke-width="1.8"/></g>` +
-      `<circle cx="125" cy="27" r="3.2" fill="#ffd9b8"/><circle cx="125" cy="27" r="8" fill="#ffd9b8" opacity=".18"/>` +
-      `<rect x="12" y="12" width="10" height="1" fill="#e8ecf6" opacity=".6"/><rect x="12" y="17" width="26" height="1.6" fill="#e8ecf6" opacity=".45"/>`,
-    'A dusk sky with a hairline arc and a low sun',
-    ring,
-  )
-}
-
 function pixelRoom(ring: Ring): string {
   // Built on a grid of 4-unit pixels, as the room is.
   const px = (x: number, y: number, w: number, h: number, fill: string, opacity = 1) =>
@@ -139,15 +99,11 @@ function swatch(tint: string, window: 'light' | 'dark', title: string, ring: Rin
 /** The tile's picture as one SVG document. */
 export function thumbnailSvg(thumbnail: Thumbnail, title: string, ring: Ring = { isPicked: false }): string {
   if (thumbnail.kind === 'swatch') return swatch(thumbnail.tint, thumbnail.window, title, ring)
-  if (thumbnail.art === 'constellation') return constellation(ring)
-  if (thumbnail.art === 'real-sky') return realSky(ring)
   return pixelRoom(ring)
 }
 
 /** One colour that stands for the theme, for the terminal's dot. */
 export function accentOf(thumbnail: Thumbnail): string {
   if (thumbnail.kind === 'swatch') return thumbnail.window === 'dark' ? mix(thumbnail.tint, '#ffffff', 0.45) : mix(thumbnail.tint, '#6b6355', 0.45)
-  if (thumbnail.art === 'constellation') return '#93a6ff'
-  if (thumbnail.art === 'real-sky') return '#e5b48f'
   return '#f4b860'
 }
