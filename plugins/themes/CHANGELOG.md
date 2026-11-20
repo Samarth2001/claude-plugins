@@ -2,6 +2,17 @@
 
 All notable changes to themes. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `themes--v<version>`.
 
+## [0.3.0] - 2026-11-20
+
+### Added
+
+- Samarth's four quiet backdrops, Mesh Glow, Light Leak, Silk and Pearl, each with a picture of its own and its glass as an option. **Install all by Samarth** installs all five of Samarth's themes.
+
+### Changed
+
+- A cleaner strip in the desktop and mobile apps. Each picture fills its tile and the title under it is drawn the same width, so every tile lines up. The author is named once, beside the picked theme under the strip, rather than under every tile. The band's rows, the theme's line and its controls are spaced with the app's own spacing steps.
+- Anthropic's scenes show as a softly lit swatch of their glass tint with a faint line of chat and the prompt box, in place of two letters of the name.
+
 ## [0.2.1] - 2026-11-18
 
 ### Fixed
@@ -32,6 +43,7 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.
 - At a session's start, where the kept theme is on alongside another, the other is turned off.
 
+[0.3.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.3.0
 [0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.1
 [0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.0
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.1.1

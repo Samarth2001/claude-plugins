@@ -78,22 +78,47 @@ const themes = ($: { command: { run: (e: never) => Promise<{ text?: string }> } 
   $.command.run({ command: 'themes', args } as never)
 
 for (const surface of SURFACES) {
-  test(`${surface}: /themes opens a strip of every theme, each tagged with its author`, async ($, on) => {
+  test(`${surface}: /themes opens a strip of every theme, and names who built it`, async ($, on) => {
     const w = world(['pixel-room', 'theme-examples'])
     engine(on, w)
     await $.session.start(start)
     expect((await themes($)).text).toBe('Pick a theme in the band above the prompt.')
 
-    // Wide enough for one page of all 21.
+    // Wide enough for one page of all 25.
     const ui = await $.ui.mount(BAND(surface, 1000))
-    for (const id of ['pixel-room', 'honu-lagoon', 'ember']) {
+    for (const id of ['pixel-room', 'mesh-glow', 'light-leak', 'silk', 'pearl', 'honu-lagoon', 'ember']) {
       expect(await ui.find({ key: `tile:${id}` })).toBeDefined()
     }
-    const words = (await ui.findAll({ type: 'Text' })).map(t => t.text ?? '').join(' ')
-    expect(words).toContain('Samarth')
-    expect(words).toContain('Anthropic')
+    const words = async () => (await ui.findAll({ type: 'Text' })).map(t => t.text ?? '').join(' ')
+    if (surface === 'terminal') {
+      // The text strip tags each run of tiles with its author.
+      expect(await words()).toContain('Samarth')
+      expect(await words()).toContain('Anthropic')
+    } else {
+      // The pictures carry titles alone; the line under them names the picked theme's author.
+      expect(await words()).toContain('by Samarth')
+      expect(await words()).not.toContain('by Anthropic')
+    }
     // Opening runs nothing: no theme changes until a tile is picked.
     expect(w.runs).toEqual([])
+    await ui.press({ key: 'tile:honu-lagoon' })
+    expect(await words()).toContain('by Anthropic')
+    await ui.unmount()
+  })
+
+  test(`${surface}: each quiet backdrop is tried with its own command, and its glass set from the band`, async ($, on) => {
+    const w = world(['mesh-glow', 'light-leak', 'silk', 'pearl'])
+    engine(on, w)
+    await $.session.start(start)
+    await themes($)
+    const ui = await $.ui.mount(BAND(surface, 1000))
+    await ui.press({ key: 'tile:mesh-glow' })
+    await ui.select({ key: 'opt:mesh-glow:glass', value: 'frosted' })
+    await ui.press({ key: 'tile:pearl' })
+    await ui.press({ key: 'keep' })
+    expect(w.runs).toEqual(['/mesh-glow on', '/mesh-glow glass frosted', '/mesh-glow off', '/pearl on'])
+    expect(w.store.get('chosen')).toBe('pearl')
+    expect(w.store.get('settings')).toEqual({ 'mesh-glow': { glass: 'frosted' } })
     await ui.unmount()
   })
 
@@ -229,8 +254,9 @@ for (const surface of SURFACES) {
     await themes($)
     const ui = await $.ui.mount(BAND(surface))
     await ui.press({ key: 'install-ours' })
-    expect(w.argv.map(argv => argv[3])).toEqual(['pixel-room@samarth'])
-    expect(await ui.find({ type: 'Text', text: /claude plugin install pixel-room@samarth/ })).toBeDefined()
+    const ours = ['pixel-room', 'mesh-glow', 'light-leak', 'silk', 'pearl'].map(name => `${name}@samarth`)
+    expect(w.argv.map(argv => argv[3])).toEqual(ours)
+    expect(await ui.find({ type: 'Text', text: /claude plugin install pixel-room@samarth; claude plugin install mesh-glow@samarth/ })).toBeDefined()
     await ui.unmount()
   })
 }
@@ -242,7 +268,7 @@ test('a narrow band pages its tiles, and the arrows move through them', async ($
   await themes($)
 
   const wide = await $.ui.mount(BAND('desktop', 400))
-  expect(await wide.findAll({ type: 'Svg' })).toHaveLength(21)
+  expect(await wide.findAll({ type: 'Svg' })).toHaveLength(25)
   expect(await wide.find({ key: 'next' })).toBeUndefined()
   await wide.unmount()
 
@@ -251,12 +277,12 @@ test('a narrow band pages its tiles, and the arrows move through them', async ($
   expect(await narrow.find({ key: 'tile:pixel-room' })).toBeDefined()
   await narrow.press({ key: 'next' })
   expect(await narrow.find({ key: 'tile:pixel-room' })).toBeUndefined()
-  expect(await narrow.find({ key: 'tile:halftone-dawn' })).toBeDefined()
+  expect(await narrow.find({ key: 'tile:silk' })).toBeDefined()
   await narrow.unmount()
 
   const terminal = await $.ui.mount(BAND('terminal', 60))
   expect(await terminal.find({ key: 'next' })).toBeDefined()
-  expect((await terminal.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('tile:')).length).toBeLessThan(21)
+  expect((await terminal.findAll({ type: 'Button' })).filter(b => b.key?.startsWith('tile:')).length).toBeLessThan(25)
   await terminal.unmount()
 })
 

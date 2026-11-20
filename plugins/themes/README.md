@@ -2,7 +2,7 @@
 
 A theme picker above the prompt. `/themes` opens a strip of small previews, one per theme. Pick one and it goes on at once, so you can step through them; Keep keeps the one you like, and Cancel puts back what was on. Each theme's own options sit under the strip, and themes you don't have yet install from the same place.
 
-It lists Samarth's [Pixel Room](../pixel-room) and the twenty scenes of Anthropic's `theme-examples` plugin, each tagged with who built it.
+It lists Samarth's five themes, [Pixel Room](../pixel-room), [Mesh Glow](../mesh-glow), [Light Leak](../light-leak), [Silk](../silk) and [Pearl](../pearl), and the twenty scenes of Anthropic's `theme-examples` plugin, and names who built each.
 
 ## Install
 
@@ -14,7 +14,8 @@ claude plugin install themes@samarth
 Then run `/reload-plugins` in an open session, or start a new one, and run `/themes`. Until one of Samarth's themes is installed, the band offers **Install all by Samarth**, which installs every one of them at once. To install everything from a shell instead:
 
 ```bash
-claude plugin install themes@samarth && claude plugin install pixel-room@samarth
+claude plugin install themes@samarth
+for theme in pixel-room mesh-glow light-leak silk pearl; do claude plugin install "$theme@samarth"; done
 ```
 
 Every theme stays its own plugin. `themes` doesn't list them as dependencies: Claude Code installs a missing dependency again on `/reload-plugins`, so a theme you removed would keep coming back.
@@ -23,9 +24,9 @@ Every theme stays its own plugin. `themes` doesn't list them as dependencies: Cl
 
 `/themes` opens a band above the prompt. It never opens unasked.
 
-- **The strip.** One tile per theme with its title and a faint "by Samarth" or "by Anthropic". In the desktop and mobile apps each tile has a small picture; in the terminal it is one line of text with a coloured mark. ✓ marks the theme that is on. When the tiles don't fit the width, ‹ and › page through them.
+- **The strip.** One tile per theme. In the desktop and mobile apps each tile is a small picture with the theme's title under it, the two the same width so the tiles line up, and the line below the strip names the picked theme and who built it. In the terminal each tile is one line of text with a coloured mark, each run of tiles tagged "Samarth" or "Anthropic". ✓ marks the theme that is on. When the tiles don't fit the width, ‹ and › page through them.
 - **Pick a tile** to try the theme live. The theme that was on goes off first, so two themes never run at once.
-- **Options** for the picked theme sit under the strip and run that theme's own command as soon as you change them. Pixel Room: the glass, the card and the sound. Anthropic's scenes: whether Keep applies the scene to this project or this session only.
+- **Options** for the picked theme sit under the strip and run that theme's own command as soon as you change them. Pixel Room: the glass, the card and the sound. Mesh Glow, Light Leak, Silk and Pearl: the glass. Anthropic's scenes: whether Keep applies the scene to this project or this session only.
 - **Keep** keeps the picked theme and closes the band. **Cancel** puts back the theme that was on when you opened it and closes the band. Esc returns the keys to the prompt but leaves the band open.
 - **Install** appears on a theme you don't have, **Remove** on one you do, after a yes. Anthropic's scenes show as one tile until their plugin is installed.
 
@@ -49,7 +50,7 @@ The picker draws no theme itself. It runs each theme's own slash command, the sa
 | Try or keep one of Samarth's themes | `/<theme> off` for the theme that was on, then `/<theme> on` |
 | Try an Anthropic scene | `/<theme> off` for the theme that was on, then `/custom-theme <scene> session` |
 | Keep an Anthropic scene | `/custom-theme <scene>` for this project, or `/custom-theme <scene> session` |
-| Change an option | The theme's command with that word: `/pixel-room glass clear`, `/pixel-room card off`, `/pixel-room mute` |
+| Change an option | The theme's command with that word: `/pixel-room glass clear`, `/pixel-room card off`, `/pixel-room mute`, `/silk glass frosted` |
 | Install | `claude plugin install <plugin>@<marketplace>` on your machine |
 | Remove | `/<theme> off` if it is on, then `/<theme> forget` for Samarth's themes, then `claude plugin uninstall <plugin>@<marketplace>` |
 
@@ -77,12 +78,11 @@ A theme that follows this repo's convention also takes `glass clear|soft|frosted
 ## Known limits
 
 - The desktop app draws its own solid backing behind the band, the full width of the window, while the band is open. A plugin can't change it; Keep or Cancel closes the band and it goes.
-
 - One theme shows at a time, and a theme's `off` clears whichever theme stands, so the picker always turns the old theme off before the new one on.
 - A theme that set itself before this plugin loaded (a hot reload of the picker mid-session) isn't held back until the next start, or until you pick another.
 - A held theme still counts itself on in its own settings; it is only held while this plugin is installed and a theme is kept. Uninstall the picker and every installed theme that is on draws again at the next start.
 - Anthropic's scene list is written into the catalog from `theme-examples` 0.4.3. A scene it adds later shows up once it is added to the catalog, and one it renames stops switching until the catalog follows.
-- Pictures on the tiles are the picker's own small drawings, not the themes' live scenes. Anthropic's scenes show as a colour swatch of their glass tint with two letters of the name.
+- Pictures on the tiles are the picker's own small drawings, not the themes' live scenes. Anthropic's scenes show as a swatch of their glass tint, softly lit, with a faint line of chat and the prompt box over it.
 - Claude Code runs a command a plugin asks for once the session is idle, so a pick made during a turn takes effect when the turn ends.
 
 ## Develop
@@ -92,9 +92,9 @@ From the repository root:
 ```bash
 claude plugin validate --strict plugins/themes
 claude plugin test plugins/themes
-claude --plugin-dir plugins/themes --plugin-dir plugins/pixel-room
+claude --plugin-dir plugins/themes --plugin-dir plugins/pixel-room --plugin-dir plugins/mesh-glow
 ```
 
-`hooks/catalog.ts` is the registry, `hooks/plan.ts` works out which commands to run, `hooks/thumbs.ts` draws the tiles' pictures, `hooks/band.tsx` draws the band, and `hooks/register.tsx` holds the events, the command and the actions. `types/index.d.ts` declares what the band reads from `$.state`. Tested with Claude Code 2.1.325.
+`hooks/catalog.ts` is the registry, `hooks/plan.ts` works out which commands to run, `hooks/thumbs.ts` draws the tiles' pictures, `hooks/band.tsx` draws the band, and `hooks/register.tsx` holds the events, the command and the actions. `types/index.d.ts` declares what the band reads from `$.state`. Tested with Claude Code 2.1.329.
 
 See [CHANGELOG.md](CHANGELOG.md) for releases.
