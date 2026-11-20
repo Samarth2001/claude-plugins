@@ -11,6 +11,13 @@
       "tags": ["mod", "usage", "cost", "limits", "dashboard"]
     },
     {
+      "name": "light-leak",
+      "source": "./plugins/light-leak",
+      "description": "Warm light seeping into a dark film frame behind the desktop app, with still grain and an amber glow on the GPU that breathes with Claude's work",
+      "category": "themes",
+      "tags": ["mod", "theme", "backdrop", "desktop", "shader"]
+    },
+    {
       "name": "mesh-glow",
       "source": "./plugins/mesh-glow",
       "description": "A quiet colour field behind the desktop app: deep slate, teal and plum drifting slowly on the GPU, with a low warm light at the prompt that lifts while Claude works",

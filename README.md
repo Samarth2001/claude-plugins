@@ -35,6 +35,7 @@ Installed plugins also load in the Claude desktop app (Code tab, local sessions)
 | Plugin | Install id | Type | What it does |
 | --- | --- | --- | --- |
 | [HUD](plugins/hud) | `hud` | mods | A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane |
+| [Light Leak](plugins/light-leak) | `light-leak` | themes | Warm light seeping into a dark film frame behind the desktop app, with still grain and an amber glow on the GPU that breathes with Claude's work |
 | [Mesh Glow](plugins/mesh-glow) | `mesh-glow` | themes | A quiet colour field behind the desktop app: deep slate, teal and plum drifting slowly on the GPU, with a low warm light at the prompt that lifts while Claude works |
 | [Pixel Room](plugins/pixel-room) | `pixel-room` | themes | A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents and soft sounds |
 | [Themes](plugins/themes) | `themes` | mods | A theme picker above the prompt: thumbnails of every theme, tried live one click at a time, kept or put back, with each theme's options and an install or remove button |
