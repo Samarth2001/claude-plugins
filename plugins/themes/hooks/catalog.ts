@@ -13,8 +13,11 @@ export type Option =
   | { kind: 'choice'; name: string; label: string; values: readonly Choice[]; initial: string; isOnKeep?: boolean }
   | { kind: 'action'; name: string; label: string; args: string; confirm?: string }
 
+/** The themes the picker draws a picture of its own for. */
+export type Art = 'pixel-room' | 'mesh-glow' | 'light-leak' | 'silk' | 'pearl'
+
 /** A small picture for the tile: drawn art, or a colour swatch where the picker has no art of its own. */
-export type Thumbnail = { kind: 'art'; art: 'pixel-room' } | { kind: 'swatch'; tint: string; window: 'light' | 'dark' }
+export type Thumbnail = { kind: 'art'; art: Art } | { kind: 'swatch'; tint: string; window: 'light' | 'dark' }
 
 export type Entry = {
   /** What `/themes <id>` takes, unique across the catalog. */
@@ -60,6 +63,20 @@ const GLASS: Option = {
   values: ['clear', 'soft', 'frosted'].map(word => ({ value: word, label: word, args: `glass ${word}` })),
 }
 
+/** One of the quiet shader backdrops: its plugin, command and art share its id, and its one option is the glass. */
+const backdrop = (id: Art, title: string): Entry => ({
+  id,
+  title,
+  ...SAMARTH,
+  plugin: id,
+  command: id,
+  on: 'on',
+  off: 'off',
+  forget: 'forget',
+  options: [GLASS],
+  thumbnail: { kind: 'art', art: id },
+})
+
 const OURS: readonly Entry[] = [
   {
     id: 'pixel-room',
@@ -86,6 +103,10 @@ const OURS: readonly Entry[] = [
     ],
     thumbnail: { kind: 'art', art: 'pixel-room' },
   },
+  backdrop('mesh-glow', 'Mesh Glow'),
+  backdrop('light-leak', 'Light Leak'),
+  backdrop('silk', 'Silk'),
+  backdrop('pearl', 'Pearl'),
 ]
 
 // Anthropic's theme-examples plugin: each scene by its id and title, the colour its glass is tinted, and the

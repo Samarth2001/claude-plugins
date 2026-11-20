@@ -1,7 +1,7 @@
 // The band above the prompt: a strip of tiles, one per theme, and a line of what the picked one offers.
 // Pictures on the desktop app and phones; compact text on the terminal. Paged to the width it is given.
 
-import type { ElementTable, RenderElement, RenderSurface } from 'claude-code'
+import type { ElementTable, RenderElement, RenderSurface, Space } from 'claude-code'
 
 import { entriesOf } from './catalog'
 import type { Entry, Option } from './catalog'
@@ -37,9 +37,17 @@ export type Room = { columns: number; maxRows: number; surface: RenderSurface }
 
 /** A picture tile's width in cells on the desktop app and phones. */
 export const TILE_COLUMNS = 16
-const PICTURE = { width: 112, height: 70 }
 // Room the terminal strip keeps for its name, its arrows and the page count.
 const TERMINAL_CHROME = 18
+
+/**
+ * The band's spacing: between parts of one thing, between things, and between rows. The terminal's is in
+ * cells, as it was drawn; the desktop app and phones take their own spacing steps, so the band sits on the
+ * same rhythm as the app around it.
+ */
+type Spacing = { near: Space; apart: Space; rows: Space }
+const CELLS: Spacing = { near: 1, apart: 2, rows: 1 }
+const STEPS: Spacing = { near: 'sm', apart: 'lg', rows: 'md' }
 
 /** A text tile's width on the terminal: its mark, title and the gap after it, and its author's tag where the author changes. */
 const textWidth = (tile: Tile, before: Tile | undefined) => tile.title.length + 4 + (before?.author === tile.author ? 0 : tile.author.length + 2)
@@ -78,22 +86,18 @@ function pictureTile(ui: ElementTable<'desktop'>, tile: Tile, view: View, act: A
   const isPicked = tile.id === view.band.picked
   const isOn = tile.id === view.active
   return (
-    // Centred under the picture: the title's button carries its own padding, and centring keeps it level with the line below.
-    <Box flexDirection="column" alignItems="center" width={TILE_COLUMNS - 1}>
+    // One column a tile wide: the picture fills it at its own shape and the title's button is stretched to the
+    // same width under it, so every tile's edges line up whatever its title. The author is named once, below.
+    <Box flexDirection="column" alignItems="stretch" width={TILE_COLUMNS - 1} gap="xs">
       <Svg
         source={thumbnailSvg(tile.entry.thumbnail, tile.title, { isPicked })}
         alt={tile.isGroup ? `${tile.title}, themes by ${tile.author}` : `${tile.title} by ${tile.author}`}
-        width={PICTURE.width}
-        height={PICTURE.height}
       />
-      <Button key={`tile:${tile.id}`} plain onPress={() => act.pick(tile.id)}>
+      <Button key={`tile:${tile.id}`} plain dimColor={!isPicked} onPress={() => act.pick(tile.id)}>
         <Text bold={isPicked} dimColor={!tile.isInstalled} wrap="truncate">
           {isOn ? `✓ ${tile.title}` : tile.title}
         </Text>
       </Button>
-      <Text dimColor wrap="truncate">
-        by {tile.author}
-      </Text>
     </Box>
   )
 }
@@ -146,7 +150,7 @@ function question(tile: Tile, action: string): string {
 }
 
 /** What the picked tile offers: its options and Remove, or Install; then Cancel and Keep. */
-function detail(ui: ElementTable, view: View, act: Actions, columns: number): RenderElement[] {
+function detail(ui: ElementTable, view: View, act: Actions, columns: number, space: Spacing): RenderElement[] {
   const { Box, Text, Button } = ui
   const tile = view.tiles.find(t => t.id === view.band.picked)
   const confirm = view.band.confirm
@@ -177,7 +181,7 @@ function detail(ui: ElementTable, view: View, act: Actions, columns: number): Re
     tile === undefined ? (
       <Text dimColor>Pick a theme to try it.</Text>
     ) : (
-      <Box flexDirection="row" gap={1}>
+      <Box flexDirection="row" alignItems="center" gap={space.near}>
         <Text bold>{tile.title}</Text>
         <Text dimColor>by {tile.author}</Text>
       </Box>
@@ -192,34 +196,36 @@ function detail(ui: ElementTable, view: View, act: Actions, columns: number): Re
         {note}
       </Text>
     )
+  const right = (
+    <Box flexDirection="row" alignItems="center" gap={space.near}>
+      {noteText}
+      {ends}
+    </Box>
+  )
 
-  // Wide: one line. Narrow: the name and the note, then the controls.
-  // Wide: one line, the theme and its controls at the left, Cancel and Keep at the right.
-  // Narrow: the name and the note, then the controls, with Cancel and Keep still held to the right.
+  // Wide: one line, the theme and its controls at the left, the note, Cancel and Keep at the right.
   if (columns >= 100) {
     return [
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={2}>
-        <Box flexDirection="row" alignItems="center" gap={2}>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={space.apart}>
+        <Box flexDirection="row" alignItems="center" gap={space.apart}>
           {name}
           {middle}
         </Box>
-        <Box flexDirection="row" alignItems="center" gap={1}>
-          {noteText}
-          {ends}
-        </Box>
+        {right}
       </Box>,
     ]
   }
+  // Narrow: the theme and the note on one line, then its controls, with Cancel and Keep still at the right.
   return [
-    <Box flexDirection="row" alignItems="center" gap={2}>
+    <Box flexDirection="row" alignItems="center" gap={space.apart}>
       {name}
       {noteText}
     </Box>,
-    <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" columnGap={2} rowGap={1}>
-      <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={2} rowGap={1}>
+    <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" columnGap={space.apart} rowGap={space.near}>
+      <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={space.apart} rowGap={space.near}>
         {middle}
       </Box>
-      <Box flexDirection="row" alignItems="center" gap={1}>
+      <Box flexDirection="row" alignItems="center" gap={space.near}>
         {ends}
       </Box>
     </Box>,
@@ -234,17 +240,21 @@ export function drawBand(ui: ElementTable, view: View, act: Actions, room: Room)
   const pageText = count > 1 ? `${index + 1}/${count}` : ''
   const install = view.canInstallOurs ? [<Button key="install-ours" dimColor label="Install all by Samarth" onPress={() => act.installOurs()} />] : []
 
+  const space = isPictures ? STEPS : CELLS
   const rows: RenderElement[] = []
   if (isPictures) {
     const desktop = ui as ElementTable<'desktop'>
     rows.push(
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={space.apart}>
         <Text bold>Themes</Text>
-        <Box flexDirection="row" alignItems="center" gap={1}>
+        <Box flexDirection="row" alignItems="center" gap={space.apart}>
           {install}
-          {pager(ui, count, index, act)}
+          <Box flexDirection="row" alignItems="center" gap={space.near}>
+            {pager(ui, count, index, act)}
+          </Box>
         </Box>
       </Box>,
+      // A cell between tiles, in cells on every surface: the pages are counted in TILE_COLUMNS.
       <Box flexDirection="row" gap={1}>
         {tiles.map(tile => pictureTile(desktop, tile, view, act))}
       </Box>,
@@ -262,11 +272,11 @@ export function drawBand(ui: ElementTable, view: View, act: Actions, room: Room)
       </Box>,
     )
   }
-  rows.push(...detail(ui, view, act, room.columns))
+  rows.push(...detail(ui, view, act, room.columns, space))
   // Short of rows: the strip and the picked tile's controls stay; a desktop header goes first.
   const kept = rows.length <= room.maxRows ? rows : isPictures ? rows.slice(1, 1 + Math.max(1, room.maxRows - 1)) : rows.slice(0, Math.max(1, room.maxRows))
   return (
-    <Box flexDirection="column" width={room.columns} rowGap={isPictures ? 1 : 0}>
+    <Box flexDirection="column" width={room.columns} rowGap={isPictures ? space.rows : 0}>
       {kept}
     </Box>
   )

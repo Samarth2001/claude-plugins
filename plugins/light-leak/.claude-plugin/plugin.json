@@ -1,0 +1,22 @@
+{
+  "name": "light-leak",
+  "displayName": "Light Leak",
+  "version": "0.1.0",
+  "description": "Warm light seeping into a dark film frame behind the desktop app, with still grain and an amber glow on the GPU that breathes with Claude's work",
+  "author": {
+    "name": "Samarth Rayar",
+    "url": "https://github.com/Samarth2001"
+  },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/light-leak",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "theme",
+    "backdrop",
+    "desktop",
+    "shader",
+    "dark",
+    "minimal"
+  ]
+}
