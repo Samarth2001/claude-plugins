@@ -25,6 +25,13 @@
       "tags": ["mod", "theme", "backdrop", "desktop", "shader"]
     },
     {
+      "name": "pearl",
+      "source": "./plugins/pearl",
+      "description": "A muted pearly sheen drifting over near-black behind the desktop app, drawn on the GPU, swirling under your pointer and spreading in soft rings as Claude works",
+      "category": "themes",
+      "tags": ["mod", "theme", "backdrop", "desktop", "shader"]
+    },
+    {
       "name": "pixel-room",
       "source": "./plugins/pixel-room",
       "description": "A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents and soft sounds",

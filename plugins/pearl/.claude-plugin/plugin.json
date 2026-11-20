@@ -1,0 +1,22 @@
+{
+  "name": "pearl",
+  "displayName": "Pearl",
+  "version": "0.1.0",
+  "description": "A muted pearly sheen drifting over near-black behind the desktop app, drawn on the GPU, swirling under your pointer and spreading in soft rings as Claude works",
+  "author": {
+    "name": "Samarth Rayar",
+    "url": "https://github.com/Samarth2001"
+  },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/pearl",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "theme",
+    "backdrop",
+    "desktop",
+    "shader",
+    "dark",
+    "minimal"
+  ]
+}
