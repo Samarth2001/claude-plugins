@@ -11,6 +11,13 @@
       "tags": ["mod", "usage", "cost", "limits", "dashboard"]
     },
     {
+      "name": "mesh-glow",
+      "source": "./plugins/mesh-glow",
+      "description": "A quiet colour field behind the desktop app: deep slate, teal and plum drifting slowly on the GPU, with a low warm light at the prompt that lifts while Claude works",
+      "category": "themes",
+      "tags": ["mod", "theme", "backdrop", "desktop", "shader"]
+    },
+    {
       "name": "pixel-room",
       "source": "./plugins/pixel-room",
       "description": "A lo-fi pixel room behind the desktop app with the day's weather and the moon at the window, a cat you can pet that sleeps until Claude works, sticky notes for its todo list, moths for its subagents and soft sounds",

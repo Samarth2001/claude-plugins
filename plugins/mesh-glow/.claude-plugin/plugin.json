@@ -1,0 +1,22 @@
+{
+  "name": "mesh-glow",
+  "displayName": "Mesh Glow",
+  "version": "0.1.0",
+  "description": "A quiet colour field behind the desktop app: deep slate, teal and plum drifting slowly on the GPU, with a low warm light at the prompt that lifts while Claude works",
+  "author": {
+    "name": "Samarth Rayar",
+    "url": "https://github.com/Samarth2001"
+  },
+  "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/mesh-glow",
+  "repository": "https://github.com/Samarth2001/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "mod",
+    "theme",
+    "backdrop",
+    "desktop",
+    "shader",
+    "dark",
+    "minimal"
+  ]
+}
