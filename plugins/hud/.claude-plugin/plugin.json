@@ -1,7 +1,7 @@
 {
   "name": "hud",
   "displayName": "HUD",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A live usage cockpit above the prompt: context, plan limits with pace forecasts, and cost by day, week and month, in a one-line glance that expands into tabs and a dashboard pane",
   "author": {
     "name": "Samarth Rayar",

@@ -172,10 +172,15 @@ export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
     const result = await next(e)
-    await $.command.register({
-      name: 'hud',
-      description: 'Usage cockpit: "/hud" opens the dashboard and brings back a hidden band; glance, detail, hide or show sets the band',
-    })
+    // A refused /hud (a name clash, a policy) costs the command, not the band.
+    try {
+      await $.command.register({
+        name: 'hud',
+        description: 'Usage cockpit: "/hud" opens the dashboard and brings back a hidden band; glance, detail, hide or show sets the band',
+      })
+    } catch (error) {
+      $.ui.log(`HUD: /hud was not registered: ${error instanceof Error ? error.message : String(error)}`, { to: 'debug' })
+    }
     const now = await $.clock.now()
     isLight = await readTheme($)
     const usage = await $.session.usage()
@@ -272,6 +277,7 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e) // a subagent's turn, not ours
     const now = await $.clock.now()
     const snap = await read($, snapshot)
     await update($, live, l => ({ ...l, isWorking: true, turnStartedAt: now, toolsThisTurn: 0, usdAtTurnStart: snap?.usd }))

@@ -34,7 +34,7 @@ const usage = (w: World) => ({
 })
 
 // The engine beneath the plugin, its numbers read from `world` on each call.
-function engine(on: On, world: World, store = new Map<string, unknown>(), toasts: string[] = []) {
+function engine(on: On, world: World, store = new Map<string, unknown>(), toasts: string[] = [], refuseCommand = false) {
   const clock = mock.clock(on, { now: NOW })
   on('session.start', () => ({ cwd: '/' }))
   on('session.usage', () => ({ value: { startedAt: NOW, ...usage(world) } }))
@@ -43,7 +43,7 @@ function engine(on: On, world: World, store = new Map<string, unknown>(), toasts
   on('session.measure', (_$, e) => ({ changed: e.changed }))
   on('turn.start', (_$, e) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
-  on('command.register', () => ({ value: undefined }) as never)
+  on('command.register', () => (refuseCommand ? { deny: 'a command named hud is already registered' } : { value: undefined }) as never)
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   on('ui.toast', (_$, e) => {
     toasts.push(e.text)
@@ -251,6 +251,70 @@ test('the turns tab lists finished turns and the tool mix', async ($, on) => {
   expect(all).toContain('#2')
   expect(all).toContain('+50k ctx')
   expect(all).toContain('cache 90%')
+})
+
+test('a subagent turn leaves the main turn its tools and cost, and the band idle after', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  on('tool.call', () => ({ result: 'ok' }) as never)
+  await $.session.start(start)
+  await $.turn.start({ text: 'go', turnId: 't' })
+  await $.tool.call({ tool: 'Read', file_path: '/a.ts' } as never)
+  await $.tool.call({ tool: 'Bash', command: 'ls' } as never)
+  w.usd = 2.57
+  await $.session.measure(measure(w, ['cost']))
+  await $.turn.start({ text: 'look', turnId: 's1', agentId: 'a1' })
+  await $.tool.call({ tool: 'Read', file_path: '/b.ts', agentId: 'a1' } as never)
+  await $.turn.complete({ ...done, turnId: 's1', agentId: 'a1' })
+  const working = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  const during = await text(working)
+  expect(during).toContain('working')
+  expect(during).toContain('2 tools')
+  await working.unmount()
+
+  w.usd = 3.07
+  await $.turn.complete(done)
+  // A background subagent runs on after the main turn ended.
+  await $.turn.start({ text: '', turnId: 's2', agentId: 'a1' })
+  await $.turn.complete({ ...done, turnId: 's2', agentId: 'a1' })
+  await $.command.run({ command: 'hud', args: 'turns' } as never)
+  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  const line = await text(ui)
+  expect(line).not.toContain('working')
+  expect(await ui.find({ key: 'open-turns-idle' })).toBeDefined()
+  expect(line).toContain('1 turn')
+  expect(line).toContain('2 tools')
+  expect(line).toContain('$1.00') // $3.07 less the $2.07 the main turn started at
+})
+
+// Five minutes of 140 ms ticks take a while to step through.
+test('a refused /hud still starts the band and its timers', { timeoutMs: 15_000 }, async ($, on) => {
+  const today = dayKey(NOW)
+  const store = new Map<string, unknown>()
+  const logs: { text: string; to: string }[] = []
+  const clock = engine(on, world(), store, [], true)
+  on('ui.log', (_$, e) => {
+    logs.push(e)
+    return { value: undefined } as never
+  })
+  await $.session.start(start)
+  expect(logs.find(l => l.to === 'debug' && l.text.includes('/hud'))).toBeDefined()
+
+  // Another session's spend reaches the band at the next ledger refresh.
+  store.set(`spent:${today}:session-b`, 3)
+  await clock.advance(5 * 60_000)
+  const ui = await $.ui.mount({ ...BAND(false), surface: 'terminal' })
+  const line = await text(ui)
+  expect(line).toContain('42%')
+  expect(line).toContain('Oct $3.00')
+  await ui.unmount()
+
+  // The tick turns the spinner while a turn runs.
+  await $.turn.start({ text: 'go', turnId: 't' })
+  const band = await $.ui.mount({ ...BAND(true), surface: 'terminal' })
+  const before = await text(band)
+  await clock.advance(420)
+  expect((await text(band))[0]).not.toBe(before[0])
 })
 
 test('/hud hide and show, and /hud opens the dashboard', async ($, on) => {

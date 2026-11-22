@@ -82,6 +82,19 @@ describe('drawing helpers', () => {
     expect(formatTokens(1_500_000)).toBe('1.5M')
   })
 
+  test('tokens round before they pick a unit', async () => {
+    expect(formatTokens(999.4)).toBe('999')
+    expect(formatTokens(999.5)).toBe('1k')
+    expect(formatTokens(1_000)).toBe('1k')
+    expect(formatTokens(99_949)).toBe('99.9k')
+    expect(formatTokens(99_950)).toBe('100k')
+    expect(formatTokens(100_000)).toBe('100k')
+    expect(formatTokens(999_499)).toBe('999k')
+    expect(formatTokens(999_500)).toBe('1M')
+    expect(formatTokens(999_950)).toBe('1M')
+    expect(formatTokens(1_000_000)).toBe('1M')
+  })
+
   test('money prints tighter as it grows', async () => {
     expect(formatUsd(2.414)).toBe('$2.41')
     expect(formatUsd(155.4)).toBe('$155')
