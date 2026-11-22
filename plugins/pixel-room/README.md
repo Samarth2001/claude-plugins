@@ -108,7 +108,7 @@ A test run is a Bash or PowerShell command such as `npm test`, `pytest`, `cargo 
 | `/pixel-room mute` | Turns the sounds off, here and later |
 | `/pixel-room unmute` | Brings the sounds back |
 | `/pixel-room off` | Turns off the room, its card, working line, turn line, footer label and sounds, here and in later sessions |
-| `/pixel-room on` | Brings the room back |
+| `/pixel-room on` | Brings the room back, and keeps it on |
 | `/pixel-room glass clear\|soft\|frosted` | How much veil sits over the room behind the chat: none, a light one (the default), or the full frost. Kept across sessions. |
 | `/pixel-room forget` | Deletes its settings and turns it off for this session. Run it before removing the plugin |
 
@@ -133,8 +133,9 @@ To try it beside the other themes and switch between them, install the [`themes`
 - The weather is the room's own, picked from the date and the season. It is not a forecast and knows nothing of the weather where you are.
 - The seasons are told from your time zone's name. A zone south of the equator that the room doesn't know, or a machine set to UTC, gets the northern seasons.
 - A subagent started in the background returns at once, so its moth may not show.
-- A session has one theme. Another theme mod replaces this one, and setting this one replaces the other.
-- `/pixel-room off` clears whichever theme stands, not only this one. `/pixel-room forget` clears it only while the room is on.
+- A session has one theme. Another theme mod replaces this one, and setting this one replaces the other. While another theme shows, the room leaves it in place: its redraws, its working line, footer label and sounds step aside until `/pixel-room on` brings the room back.
+- Installed beside another theme and never turned on by name, the room yields at a start to a theme already showing, so installing several themes shows one. `/pixel-room on` keeps it on, so it takes its place at later starts.
+- `/pixel-room off` and `/pixel-room forget` clear the session's theme only while it is the room's.
 - With reduced motion turned on in your system, the room and the card are still: no rain, no snow, no pacing, no breathing, steady fairy lights, no hearts or plane, and the clock shows the time the room was last drawn.
 - On a square window the window and the desk move toward the middle. On a tall phone screen the window moves up and the bookcase, the floor light, the clock, the plant shelf, the calendar and the corkboard are left out, so the window and the desk both fit.
 

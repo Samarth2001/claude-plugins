@@ -2,6 +2,15 @@
 
 All notable changes to pixel-room. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pixel-room--v<version>`.
 
+## [0.3.1] - 2026-11-22
+
+### Fixed
+
+- `/pixel-room off` and `/pixel-room forget` clear the session's theme only while it is the room's, so they no longer take down another theme that showed after it.
+- The room no longer takes the window back from another theme. While another theme shows, its redraws (a turn, the cat, the clock, a pet), a clear, a resume or a fork leave that theme in place, and the room's working line, footer label and sounds step aside too. `/pixel-room on` brings the room back and keeps that choice.
+- Installed beside another theme and never turned on by name, the room yields at a start to a theme already showing, so installing several themes shows one.
+- `/pixel-room` names why the room isn't drawn: no window here, another theme showing, or held back by the themes picker.
+
 ## [0.3.0] - 2026-11-18
 
 ### Removed
@@ -86,6 +95,7 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.
 
+[0.3.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.3.1
 [0.3.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.3.0
 [0.2.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.2
 [0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.1

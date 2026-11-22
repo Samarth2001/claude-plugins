@@ -46,8 +46,8 @@ const GAIN = 0.5
 const WEATHERS: readonly Weather[] = ['rain', 'drizzle', 'snow', 'fog', 'clear']
 // A push, wherever it sits in a chain of commands: `git push`, `git -C app push origin main`.
 const PUSH = /\bgit\b[^;&|]*\bpush\b/
-const UNDRAWN = "This window doesn't draw backdrops; the room shows in the desktop and mobile apps."
 const DARK = 'The room is dark: /pixel-room on lights it again.'
+const ELSEWHERE = 'Another theme is showing: /pixel-room on brings the room back.'
 const HELP =
   'Try /pixel-room, or off, on, mute, unmute, pet, glass clear|soft|frosted, weather [rain|drizzle|snow|fog|clear|auto], card, card off, card on or forget.'
 
@@ -96,6 +96,10 @@ let isOn = true
 let isMuted = false
 let glass: Glass = 'soft'
 let lastSet: ThemeResult | undefined
+// Whose theme stands now, as the theme events seen since the module loaded say: a plugin's name, or
+// null for none. One theme stands at a time, so the room clears and redraws only its own, and steps
+// aside for another's.
+let standing: string | null = null
 // The scene the backdrop last drew, flourish aside, so a redraw happens only when something in it moved.
 let drawnKey: string | undefined
 // The view the card last read, so an unchanged one writes nothing.
@@ -125,6 +129,34 @@ const isSouthern: boolean = (() => {
 })()
 
 const weather = (): Weather => pinned ?? dayWeather
+const isStanding = (): boolean => standing === PLUGIN
+/** Another plugin's theme stands in the room's place: the room keeps out of the working line and the footer too. */
+const isDisplaced = (): boolean => standing !== null && standing !== PLUGIN
+
+/**
+ * Whose theme stands after `by` set one and the engine answered `result`. A set stands when a window
+ * draws it or it waits for one (it has a request id); a set denied, or held back before it reached the
+ * session, has neither and leaves whoever stood.
+ */
+export function standsAfter(was: string | null, by: string, result: ThemeResult | undefined): string | null {
+  return result !== undefined && (result.isDrawn || result.requestId !== undefined) ? by : was
+}
+
+/** Whether the start leaves the theme to another: never turned on by name (`enabled` unset) while another's stands. */
+export function yieldsAtStart(enabled: unknown, standingNow: string | null): boolean {
+  return enabled === undefined && standingNow !== null && standingNow !== PLUGIN
+}
+
+/** Where the room stands, as the last line of `/pixel-room`. */
+export function whereLine(view: { isOn: boolean; standing: string | null; lastSet: ThemeResult | undefined }): string | undefined {
+  const { isOn: on, standing: by, lastSet: set } = view
+  if (!on) return DARK
+  if (by !== null && by !== PLUGIN) return ELSEWHERE
+  if (set === undefined) return undefined
+  if (set.isDrawn) return 'The room is drawn behind this window.'
+  if (set.requestId === undefined) return `The room isn't drawn: ${set.reason}.`
+  return `Nothing draws the room here: ${set.reason}. It shows in the desktop and mobile apps.`
+}
 
 function notes(): Notes {
   const out = { ...todos }
@@ -214,10 +246,10 @@ async function setTheme($: EngineInterface): Promise<ThemeResult> {
   return lastSet
 }
 
-/** Draws the room afresh, under the other scene name, where it is on. */
+/** Draws the room afresh, under the other scene name, where it is on and its theme still stands. */
 async function redraw($: EngineInterface): Promise<void> {
   flip += 1
-  if (isOn) await setTheme($)
+  if (isOn && isStanding()) await setTheme($)
 }
 
 /** Redraws the backdrop when something in the scene moved, and hands the card the room. */
@@ -312,36 +344,37 @@ async function command($: EngineInterface, args: string): Promise<string> {
     await readSky($)
     await refresh($)
     const lines = [describeRoom(sceneInput()), `${cups(turns)} so far; the plant looks ${plant}. ${isMuted ? 'The room is hushed.' : 'Sounds are on, softly.'}`]
-    if (!isOn) lines.push(DARK)
-    else if (lastSet?.isDrawn === false) lines.push(UNDRAWN)
-    else if (lastSet?.isDrawn === true) lines.push('The room is drawn behind this window.')
+    const where = whereLine({ isOn, standing, lastSet })
+    if (where !== undefined) lines.push(where)
     return lines.join('\n')
   }
   if (word === 'off') {
     isOn = false
     await $.store.set('enabled', false)
-    await $.theme.clear()
+    // There is one theme: clear it only while it is the room's.
+    if (isStanding()) await $.theme.clear()
     await $.ui.close({ id: PANE })
     $.ui.invalidate('ui.render')
     return 'Pixel Room is off, its card and sounds too. /pixel-room on brings it back.'
   }
   if (word === 'on') {
+    // Asked for by name: kept on, so the room takes its place at a start even beside another theme.
     isOn = true
-    await $.store.delete('enabled')
+    await $.store.set('enabled', true)
     await readSky($)
-    await redraw($)
+    flip += 1
+    await setTheme($)
     await sync($)
     $.ui.invalidate('ui.render')
     return 'Pixel Room is on.'
   }
   if (word === 'forget') {
-    // Before a removal: every choice it kept goes. The theme is cleared only if it is this one's.
-    const wasOn = isOn
+    // Before a removal: every choice it kept goes, and the theme with it if it is the room's.
     isOn = false
     glass = 'soft'
     pinned = undefined
     for (const key of await $.store.keys()) await $.store.delete(key)
-    if (wasOn) await $.theme.clear()
+    if (isStanding()) await $.theme.clear()
     await $.ui.close({ id: PANE })
     $.ui.invalidate('ui.render')
     return 'Pixel Room forgot what it kept and is off until it loads again.'
@@ -358,6 +391,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
   }
   if (word === 'pet') {
     if (!isOn) return DARK
+    if (isDisplaced()) return ELSEWHERE
     if (!(await pet($))) return 'The cat is still purring from the last one.'
     return `You pet the cat. ${isMuted ? 'It purrs, too softly to hear.' : 'It purrs.'}`
   }
@@ -422,6 +456,23 @@ function countTodos(list: unknown): Notes | undefined {
 }
 
 export const register: Register = on => {
+  // Every theme set and clear, the room's and every other's, to know whose theme stands.
+  on('theme.set', async ($, e, next) => {
+    const out = await next(e)
+    try {
+      standing = standsAfter(standing, next.origin.plugin, out.value)
+    } catch (error) {
+      tell($, 'theme.set', error)
+    }
+    return out
+  }).catch(($, e, next) => next(e))
+
+  on('theme.clear', async ($, e, next) => {
+    const out = await next(e)
+    standing = null
+    return out
+  }).catch(($, e, next) => next(e))
+
   on('session.start', async ($, e, next) => {
     try {
       await $.command.register({
@@ -435,7 +486,8 @@ export const register: Register = on => {
       tell($, '/pixel-room', error)
     }
     try {
-      isOn = (await $.store.get('enabled')) !== false
+      const enabled = await $.store.get('enabled')
+      isOn = enabled !== false
       isMuted = (await $.store.get('muted')) === true
       // Settings of earlier versions with nothing left to set: the band, and the card opening by itself.
       for (const retired of ['band', 'card']) if ((await $.store.get(retired)) !== undefined) await $.store.delete(retired)
@@ -444,7 +496,8 @@ export const register: Register = on => {
       const sky = await $.store.get('weather')
       pinned = WEATHERS.includes(sky as Weather) ? (sky as Weather) : undefined
       await readSky($)
-      if (isOn) await setTheme($)
+      // Never turned on by name, the room yields to a theme already showing, so installing several shows one.
+      if (isOn && !yieldsAtStart(enabled, standing)) await setTheme($)
       await sync($)
     } catch (error) {
       tell($, 'session.start', error)
@@ -467,10 +520,10 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // A clear, a resume or a fork drops the theme, which is display only: set it again.
+  // A clear, a resume or a fork drops the theme, which is display only: set it again, if it was the room's.
   on('classic.SessionStart', { source: ['clear', 'resume', 'fork'] }, async ($, e, next) => {
     try {
-      if (isOn) await setTheme($)
+      if (isOn && isStanding()) await setTheme($)
     } catch (error) {
       tell($, 'SessionStart', error)
     }
@@ -580,7 +633,8 @@ export const register: Register = on => {
       tell($, 'turn.complete', error)
     }
     try {
-      if (isOn && !isMuted && sound !== undefined) chime($, sound)
+      // The room's sounds belong to the room: none while another theme shows in its place.
+      if (isOn && !isDisplaced() && !isMuted && sound !== undefined) chime($, sound)
     } catch (error) {
       tell($, 'turn.complete', error)
     }
@@ -614,7 +668,7 @@ export const register: Register = on => {
 
   // The working line speaks of the room: one phrase a turn for each thing the turn does.
   on('ui.render', { component: 'Spinner' }, ($, e, next) => {
-    if (!isOn || e.props.message !== null) return next(e)
+    if (!isOn || isDisplaced() || e.props.message !== null) return next(e)
     // The desktop's row names its step; only its bare "Working" is the room's to change.
     if (e.surface !== 'terminal' && e.props.word !== 'Working') return next(e)
     const mode = e.props.mode
@@ -625,13 +679,13 @@ export const register: Register = on => {
 
   // The line that closes a turn on the terminal: the room's own word for it, the time kept.
   on('ui.render', { component: 'TurnDuration' }, ($, e, next) => {
-    if (!isOn || e.surface !== 'terminal' || e.props.isExpanded === true || e.props.waitingFor !== undefined) return next(e)
+    if (!isOn || isDisplaced() || e.surface !== 'terminal' || e.props.isExpanded === true || e.props.waitingFor !== undefined) return next(e)
     return next({ ...e, props: { ...e.props, word: doneWord(e.requestId) } })
   })
 
   // One quiet label in the footer.
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
-    if (!isOn) return next(e)
+    if (!isOn || isDisplaced()) return next(e)
     const view = await read($, card)
     return next({ ...e, props: { ...e.props, modes: [...e.props.modes, modeLabel(view)] } })
   })
