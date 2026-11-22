@@ -1,18 +1,21 @@
 import { expect, mock, test } from 'claude-code/testing'
-import type { Engine, FoundElement } from 'claude-code/testing'
+import type { Engine } from 'claude-code/testing'
 import type { On, ThemeSetArgs } from 'claude-code'
 
+import { bounce, skyAt, standsAfter, statusOf, yieldsAtStart } from './register'
+
 // Local times, so the hour reads the same in any time zone.
-const NOON = new Date(2026, 10, 17, 12).getTime()
+const NOON = new Date(2026, 10, 20, 12).getTime()
 const MINUTE = 60_000
+const HELD = 'Held back by the themes picker: another theme is kept'
 
 type World = {
   store: Map<string, unknown>
+  /** Every theme set that reached the engine. */
   themes: ThemeSetArgs[]
   clears: number
-  logs: string[]
-  /** Whether a client that draws themes is attached. */
-  isDrawn: boolean
+  /** How the engine answers a set: drawn by a window, standing for a window yet to attach, or held back above it. */
+  answer: 'drawn' | 'waiting' | 'held'
   /** How the engine answers the next tool calls. */
   tools: 'ok' | 'error' | 'deny'
 }
@@ -21,8 +24,7 @@ const world = (entries: Record<string, unknown> = {}): World => ({
   store: new Map(Object.entries(entries)),
   themes: [],
   clears: 0,
-  logs: [],
-  isDrawn: true,
+  answer: 'drawn',
   tools: 'ok',
 })
 
@@ -32,18 +34,18 @@ function engine(on: On, w: World, now = NOON) {
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', () => ({ value: { command: 'pearl' } }))
   on('theme.set', (_$, e) => {
+    if (w.answer === 'held') return { value: { isDrawn: false, reason: HELD } } as never
     w.themes.push(e)
-    return { value: w.isDrawn ? { isDrawn: true, requestId: 'backdrop' } : { isDrawn: false, reason: 'no window draws themes' } } as never
+    return {
+      value: w.answer === 'drawn' ? { isDrawn: true, requestId: 'backdrop' } : { isDrawn: false, requestId: 'backdrop', reason: 'no window draws themes' },
+    } as never
   })
   on('theme.clear', () => {
     w.clears += 1
     return { value: { isDrawn: false, reason: 'cleared' } } as never
   })
   on('ui.invalidate', () => ({ value: undefined }) as never)
-  on('ui.log', (_$, e) => {
-    w.logs.push(e.text)
-    return { value: undefined } as never
-  })
+  on('ui.log', () => ({ value: undefined }) as never)
   on('store.get', (_$, e) => ({ value: w.store.get(e.key) }) as never)
   on('store.set', (_$, e) => {
     w.store.set(e.key, JSON.parse(JSON.stringify(e.value)))
@@ -67,25 +69,24 @@ const done = { answer: '', durationMs: 1000, isAborted: false, turnId: 't', reas
 const read = { tool: 'Read', file_path: '/home/me/desk/a.ts' } as const
 const run = async ($: Engine, args: string) => (await $.command.run({ command: 'pearl', args } as never)).text
 
-const BACKDROP = (scene = 'pearl', plugin = 'pearl') =>
+const BACKDROP = (plugin = 'pearl', scene = 'pearl') =>
   ({
     plugin: 'pearl',
     component: 'Backdrop',
     props: { scene, plugin, glass: { blur: 4, tint: '#111116', opacity: 0.28 }, overrideColorScheme: 'dark' },
   }) as const
 
-/** The backdrop's tree on a surface: its root and the Svgs inside. */
-async function backdrop($: Engine, surface: 'desktop' | 'mobile' = 'desktop', scene?: string, plugin?: string) {
-  const ui = await $.ui.mount({ ...BACKDROP(scene, plugin), surface })
+/** The values the backdrop hands its shader on a surface. */
+async function values($: Engine, surface: 'desktop' | 'mobile' = 'desktop'): Promise<Record<string, unknown>> {
+  const ui = await $.ui.mount({ ...BACKDROP(), surface })
   const shader = await ui.find({ type: 'Shader' })
-  const svgs = await ui.findAll({ type: 'Svg' })
   await ui.unmount()
-  return { shader, svgs }
+  return shader?.props.values as Record<string, unknown>
 }
 
-const valuesOf = (shader: FoundElement | undefined) => shader?.props.values as Record<string, number> | undefined
+const RESTING = { work: 0, calls: 0, errs: 0, turns: 0, sends: 0, night: 0, warm: 0 }
 
-test('session.start sets the theme: the scene, dark colours and the soft glass', async ($, on) => {
+test('the start sets the theme: its scene, dark colours under its label, and the soft glass', async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
@@ -93,10 +94,10 @@ test('session.start sets the theme: the scene, dark colours and the soft glass',
   const set = w.themes[0]
   expect(set?.colors?.label).toBe('Pearl')
   expect(set?.overrideColorScheme).toBe('dark')
-  expect(set?.backdrop).toMatchObject({ scene: 'pearl', glass: { blur: 4, tint: '#111116', opacity: 0.28 } })
+  expect(set?.backdrop).toEqual({ scene: 'pearl', glass: { blur: 4, tint: '#111116', opacity: 0.28 } })
 })
 
-test('a stored off sets nothing at the start', async ($, on) => {
+test('a stored off sets no theme at the start, and a stored frosted glass is used', async ($, on) => {
   const off = world({ enabled: false })
   engine(on, off)
   await $.session.start(start)
@@ -110,104 +111,183 @@ test('a stored frosted glass is used at the start', async ($, on) => {
   expect(w.themes[0]?.backdrop).toMatchObject({ glass: { blur: 16, tint: '#111116', opacity: 0.5 } })
 })
 
-test('/pearl says whether it is drawn, and the glass', async ($, on) => {
+// Another plugin's theme can't be set from a test (a test's hooks may make only the calls the plugin's
+// own scan lists), so what decides whose theme stands is tested here as the plain functions the hooks call.
+test("a set stands when a window draws it or it waits for one; a held or denied set leaves whoever stood", () => {
+  expect(standsAfter(null, 'pearl', { isDrawn: true, requestId: 'backdrop' })).toBe('pearl')
+  expect(standsAfter('pearl', 'other', { isDrawn: true, requestId: 'backdrop' })).toBe('other')
+  expect(standsAfter('other', 'pearl', { isDrawn: false, requestId: 'backdrop', reason: 'no window draws themes' })).toBe('pearl')
+  expect(standsAfter('other', 'pearl', { isDrawn: false, reason: HELD })).toBe('other')
+  expect(standsAfter('other', 'pearl', undefined)).toBe('other')
+})
+
+test('the start yields to another theme only while this one was never asked for by name', () => {
+  expect(yieldsAtStart(undefined, 'other')).toBe(true)
+  expect(yieldsAtStart(true, 'other')).toBe(false)
+  expect(yieldsAtStart(undefined, null)).toBe(false)
+  expect(yieldsAtStart(undefined, 'pearl')).toBe(false)
+})
+
+test('the status names another theme in its place, or no theme at all', () => {
+  const drawn = { isDrawn: true, requestId: 'backdrop' } as const
+  expect(statusOf({ isOn: true, standing: 'other', lastSet: drawn })).toBe('Pearl is on, but another theme is showing. /pearl on brings it back.')
+  expect(statusOf({ isOn: true, standing: 'other', lastSet: undefined })).toBe('Pearl is on, but another theme is showing. /pearl on brings it back.')
+  expect(statusOf({ isOn: true, standing: null, lastSet: drawn })).toBe('Pearl is on, but no theme is showing. /pearl on brings it back.')
+  expect(statusOf({ isOn: false, standing: 'other', lastSet: drawn })).toBe('Pearl is off. /pearl on brings it back.')
+})
+
+test('/pearl says whether it is drawn here, and the glass', async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
   expect(await run($, '')).toBe('Pearl is on, drawn behind this window.\nThe glass is soft.')
+  await run($, 'off')
+  expect(await run($, '')).toBe('Pearl is off. /pearl on brings it back.\nThe glass is soft.')
 })
 
-test('/pearl says when this window draws no backdrop', async ($, on) => {
-  const w = world()
-  w.isDrawn = false
-  engine(on, w)
-  await $.session.start(start)
-  expect(await run($, '')).toBe("Pearl is on, but this window doesn't draw backdrops: it shows in the Claude desktop app.\nThe glass is soft.")
+test('/pearl says why nothing draws it: no window here, or held back by another plugin', async ($, on) => {
+  const waiting = world()
+  waiting.answer = 'waiting'
+  engine(on, waiting)
+  await $.session.start({ ...start, surface: 'terminal' })
+  expect(await run($, '')).toBe(
+    'Pearl is on, but nothing draws it here: no window draws themes. It shows in the Claude desktop app.\nThe glass is soft.',
+  )
 })
 
-test('/pearl off clears the theme and keeps it off; on brings it back', async ($, on) => {
+test('/pearl names what held its theme back', async ($, on) => {
+  const w = world()
+  w.answer = 'held'
+  engine(on, w)
+  await $.session.start(start)
+  expect(await run($, '')).toBe(`Pearl is on, but it isn't drawn: ${HELD}.\nThe glass is soft.`)
+  // Its theme never stood: an off clears nothing.
+  await run($, 'off')
+  expect(w.clears).toBe(0)
+})
+
+test('/pearl on, off, glass and help answer as documented', async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
+
   expect(await run($, 'off')).toBe('Pearl is off. /pearl on brings it back.')
   expect(w.clears).toBe(1)
   expect(w.store.get('enabled')).toBe(false)
-  expect(await run($, '')).toBe('Pearl is off. /pearl on brings it back.\nThe glass is soft.')
+
   expect(await run($, ' ON ')).toBe('Pearl is on.')
-  expect(w.store.has('enabled')).toBe(false)
+  expect(w.store.get('enabled')).toBe(true)
   expect(w.themes).toHaveLength(2)
-})
 
-test('/pearl glass sets each glass and keeps all but soft', async ($, on) => {
-  const w = world()
-  engine(on, w)
-  await $.session.start(start)
   expect(await run($, 'glass clear')).toBe('The glass is clear.')
-  expect(w.themes[1]?.backdrop).toMatchObject({ glass: false })
   expect(w.store.get('glass')).toBe('clear')
-  expect(await run($, 'glass   frosted')).toBe('The glass is frosted.')
-  expect(w.themes[2]?.backdrop).toMatchObject({ glass: { blur: 16, opacity: 0.5 } })
+  expect(w.themes.at(-1)?.backdrop).toMatchObject({ glass: false })
+  expect(await run($, 'glass  Frosted')).toBe('The glass is frosted.')
   expect(w.store.get('glass')).toBe('frosted')
+  expect(w.themes.at(-1)?.backdrop).toMatchObject({ glass: { blur: 16, opacity: 0.5 } })
   expect(await run($, 'glass soft')).toBe('The glass is soft.')
-  expect(w.themes[3]?.backdrop).toMatchObject({ glass: { blur: 4, opacity: 0.28 } })
   expect(w.store.has('glass')).toBe(false)
-})
+  expect(w.themes.at(-1)?.backdrop).toMatchObject({ glass: { blur: 4, opacity: 0.28 } })
+  expect(w.themes).toHaveLength(5)
 
-test('/pearl glass with a bad word or none says the glass and the words', async ($, on) => {
-  const w = world()
-  engine(on, w)
-  await $.session.start(start)
-  expect(await run($, 'glass tinted')).toBe('The glass is soft. Try /pearl glass clear, soft or frosted.')
+  expect(await run($, 'glass foggy')).toBe('The glass is soft. Try /pearl glass clear, soft or frosted.')
   expect(await run($, 'glass')).toBe('The glass is soft. Try /pearl glass clear, soft or frosted.')
-  expect(w.themes).toHaveLength(1)
+  expect(w.themes).toHaveLength(5)
+
+  expect(await run($, 'brighter')).toBe('Try /pearl, or on, off, glass clear|soft|frosted, or forget.')
 })
 
-test('/pearl forget empties the store and clears the theme', async ($, on) => {
-  const w = world({ glass: 'frosted' })
+test('/pearl glass while off keeps the choice and sets no theme', async ($, on) => {
+  const w = world({ enabled: false })
   engine(on, w)
   await $.session.start(start)
-  expect(await run($, 'forget')).toBe('Pearl forgot what it kept and is off until it loads again.')
-  expect(w.store.size).toBe(0)
-  expect(w.clears).toBe(1)
-  expect(await run($, '')).toBe('Pearl is off. /pearl on brings it back.\nThe glass is soft.')
+  expect(await run($, 'glass frosted')).toBe('The glass is frosted.')
+  expect(w.store.get('glass')).toBe('frosted')
+  expect(w.themes).toHaveLength(0)
 })
 
-test('/pearl with anything else gives the help line', async ($, on) => {
+test('/pearl forget deletes everything it kept, and clears only a theme of its own', async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
-  expect(await run($, 'sparkle')).toBe('Try /pearl, or on, off, glass clear|soft|frosted, or forget.')
+  await run($, 'glass frosted')
+  expect(await run($, 'forget')).toBe('Pearl forgot what it kept and is off until it loads again.')
+  expect([...w.store.keys()]).toEqual([])
+  expect(w.clears).toBe(1)
+  // Its theme is gone already: a second forget clears nothing.
+  await run($, 'forget')
+  expect(w.clears).toBe(1)
 })
 
-test('the backdrop is the shader over the still picture, on desktop and mobile', async ($, on) => {
+test('once its theme is cleared, off and forget clear nothing more, and a clear, resume or fork sets nothing', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await run($, 'off')
+  expect(w.clears).toBe(1)
+  // Its own clear left no theme standing.
+  await $.classic.SessionStart({ source: 'clear' })
+  expect(w.themes).toHaveLength(1)
+  await run($, 'forget')
+  expect(w.clears).toBe(1)
+})
+
+test('glass while its theme is not showing keeps the choice and covers nothing', async ($, on) => {
+  const w = world()
+  w.answer = 'held'
+  engine(on, w)
+  await $.session.start(start)
+  expect(await run($, 'glass frosted')).toBe('The glass is frosted.')
+  expect(w.store.get('glass')).toBe('frosted')
+  expect(w.themes).toHaveLength(0)
+})
+
+test('the backdrop is the shader holding the still picture, on desktop and mobile', async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
   for (const surface of ['desktop', 'mobile'] as const) {
-    const { shader, svgs } = await backdrop($, surface)
-    // The element's `./shader.ts`, as the engine resolves it from the plugin's root.
-    expect(shader?.props.module).toBe('hooks/shader.ts')
+    const ui = await $.ui.mount({ ...BACKDROP(), surface })
+    const tree = await ui.drawn()
+    // The engine hands on `./shader.ts` resolved from the plugin's root.
+    expect(tree).toMatchObject({ type: 'Shader', props: { module: 'hooks/shader.ts' } })
+    const svgs = await ui.findAll({ type: 'Svg' })
     expect(svgs).toHaveLength(1)
     expect(String(svgs[0]?.props.source)).toStartWith('<svg')
-    expect(String(svgs[0]?.props.alt)).toContain('near-black')
-    expect(valuesOf(shader)).toEqual({ work: 0, calls: 0, errs: 0, turns: 0, sends: 0, hour: 12 })
+    expect(String(svgs[0]?.props.alt).toLowerCase()).toContain('pearly green')
+    await ui.unmount()
+    expect(await values($, surface)).toEqual(RESTING)
   }
 })
 
-test("the shader's values follow the main loop's turn", async ($, on) => {
+test("Claude's turn and its calls reach the shader as values", async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
+
   await $.turn.start(begin)
-  expect(valuesOf((await backdrop($)).shader)).toMatchObject({ work: 1, sends: 1 })
+  expect(await values($)).toMatchObject({ work: 1, sends: 1, calls: 0 })
+
   w.tools = 'error'
   await $.tool.call(read)
-  expect(valuesOf((await backdrop($)).shader)).toMatchObject({ calls: 1, errs: 1 })
+  expect(await values($)).toMatchObject({ calls: 1, errs: 1 })
+
+  // A denied call never ran: it counts for nothing.
   w.tools = 'deny'
   await $.tool.call(read)
-  expect(valuesOf((await backdrop($)).shader)).toMatchObject({ calls: 1, errs: 1 })
+  expect(await values($)).toMatchObject({ calls: 1, errs: 1 })
+
   await $.turn.complete(done)
-  expect(valuesOf((await backdrop($)).shader)).toMatchObject({ work: 0, turns: 1 })
+  expect(await values($)).toMatchObject({ work: 0, turns: 1 })
+
+  // A stopped turn rests without its finish.
+  await $.turn.start(begin)
+  await $.turn.complete({ ...done, isAborted: true })
+  expect(await values($)).toMatchObject({ work: 0, turns: 1, sends: 2 })
+
+  // A turn with no typed prompt, a continuation or a wake-up, is work but no message sent.
+  await $.turn.start({ ...begin, text: '' })
+  expect(await values($)).toMatchObject({ work: 1, sends: 2 })
 })
 
 test("a subagent's turns and calls change nothing", async ($, on) => {
@@ -218,28 +298,73 @@ test("a subagent's turns and calls change nothing", async ($, on) => {
   w.tools = 'error'
   await $.tool.call({ ...read, agentId: 'a1' } as never)
   await $.turn.complete({ ...done, agentId: 'a1' })
-  expect(valuesOf((await backdrop($)).shader)).toEqual({ work: 0, calls: 0, errs: 0, turns: 0, sends: 0, hour: 12 })
+  expect(await values($)).toEqual(RESTING)
 })
 
-test("another plugin's backdrop, or another scene, passes through", async ($, on) => {
+test("another plugin's backdrop, or another scene, passes through untouched", async ($, on) => {
   const w = world()
   engine(on, w)
   await $.session.start(start)
   for (const surface of ['desktop', 'mobile'] as const) {
-    const theirs = await backdrop($, surface, 'pearl', 'someone-else')
-    expect(theirs.shader).toBeUndefined()
-    expect(theirs.svgs).toHaveLength(0)
-    const other = await backdrop($, surface, 'lagoon')
-    expect(other.shader).toBeUndefined()
-    expect(other.svgs).toHaveLength(0)
+    const theirs = await $.ui.mount({ ...BACKDROP('someone-else'), surface })
+    expect(await theirs.find({ type: 'Shader' })).toBeUndefined()
+    expect(await theirs.find({ type: 'Svg' })).toBeUndefined()
+    await theirs.unmount()
+
+    const other = await $.ui.mount({ ...BACKDROP('pearl', 'lagoon'), surface })
+    expect(await other.find({ type: 'Shader' })).toBeUndefined()
+    expect(await other.find({ type: 'Svg' })).toBeUndefined()
+    await other.unmount()
   }
 })
 
-test('the hour moves on with the clock between turns', async ($, on) => {
+test('night and warmth follow the clock between turns, as values, never a new theme', async ($, on) => {
   const w = world()
-  const clock = engine(on, w, new Date(2026, 10, 17, 18, 55).getTime())
+  const clock = engine(on, w, new Date(2026, 10, 20, 18, 55).getTime())
   await $.session.start(start)
-  expect(valuesOf((await backdrop($)).shader)?.hour).toBe(18.9)
+  expect(await values($)).toMatchObject(skyAt(18.9))
+  const dusk = await values($)
   await clock.advance(10 * MINUTE)
-  expect(valuesOf((await backdrop($)).shader)?.hour).toBe(19.1)
+  expect(await values($)).toMatchObject(skyAt(19.1))
+  expect((await values($)).night).toBeGreaterThan(dusk.night as number)
+  expect(w.themes).toHaveLength(1)
+})
+
+test('night and warmth are smooth across midnight, and peak at the right hours', () => {
+  expect(skyAt(23.9)).toEqual(skyAt(0))
+  expect(skyAt(0).night).toBe(1)
+  expect(skyAt(12)).toEqual({ night: 0, warm: 0 })
+  expect(skyAt(6).warm).toBe(1)
+  expect(skyAt(18.5).warm).toBe(1)
+  // Every step of a day, ten minutes apart, moves night and warmth by a little at most.
+  for (let at = 0; at < 24; at += 1 / 6) {
+    const now = skyAt(at)
+    const later = skyAt((at + 1 / 6) % 24)
+    expect(Math.abs(later.night - now.night)).toBeLessThan(0.15)
+    expect(Math.abs(later.warm - now.warm)).toBeLessThan(0.15)
+  }
+})
+
+test('a count reaches the shader one step at a time, turning at its top instead of wrapping', () => {
+  expect([0, 1, 1022, 1023, 1024, 1025, 2045, 2046, 2047].map(bounce)).toEqual([0, 1, 1022, 1023, 1022, 1021, 1, 0, 1])
+  for (let count = 0; count < 5000; count += 1) expect(Math.abs(bounce(count + 1) - bounce(count))).toBe(1)
+})
+
+test('a clear, resume or fork sets the theme again', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await $.classic.SessionStart({ source: 'clear' })
+  await $.classic.SessionStart({ source: 'startup' })
+  expect(w.themes).toHaveLength(2)
+})
+
+test('it stores nothing but its own settings', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await $.turn.start(begin)
+  await $.tool.call(read)
+  await $.turn.complete(done)
+  expect([...w.store.keys()]).toEqual([])
 })

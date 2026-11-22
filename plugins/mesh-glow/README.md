@@ -22,7 +22,7 @@ Then run `/reload-plugins` in an open session, or start a new one.
 | A tool error | The field warms toward rose for a moment |
 | A turn ends | A gentle brightening that settles back |
 | The prompt box grows | The warm light behind it rises with it |
-| You send a message | A soft band of light lifts off the prompt |
+| You send a message | A soft band of light lifts off the prompt (a message you type: a continuation sends none) |
 | The pointer moves over it | A faint glow follows it |
 | The hour (your computer's clock) | Cool by day, deeper at night, warmer at dawn and dusk |
 
@@ -32,9 +32,11 @@ Subagents' turns and tool calls leave it as it is. A turn you stop settles witho
 
 - `/mesh-glow` says whether it is on and drawn behind this window, and the glass.
 - `/mesh-glow off` turns it off, here and in later sessions.
-- `/mesh-glow on` brings it back.
+- `/mesh-glow on` brings it back, and keeps it on.
 - `/mesh-glow glass clear|soft|frosted` sets how much veil sits over the field behind the chat: none, a light one (the default), or the full frost. Kept across sessions.
 - `/mesh-glow forget` deletes its settings and turns it off for this session. Run it before removing the plugin.
+
+One theme shows at a time. Installed beside another theme and never turned on by name, Mesh Glow leaves the other one showing; `/mesh-glow on` puts it in place and keeps that choice for later sessions. `off` and `forget` clear the session's theme only while it is Mesh Glow's, so they never take another theme down.
 
 The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option.
 
@@ -43,7 +45,7 @@ The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, w
 - The Claude desktop app draws it live on Claude Code 2.1.326 or later.
 - The mobile app, Reduce Motion and earlier builds show the still picture above, in the night colours from 19:00 to 06:00.
 - The terminal and editors draw no backdrop.
-- The shader runs at 30 fps and eases to a reduced sharpness on a weak GPU. `claude plugin validate` reports `sharpness 0.74 weak, 2.00 fast, at 30 fps`.
+- The shader runs at 30 fps and eases to a reduced sharpness on a weak GPU. `claude plugin validate` reports `sharpness 0.79 weak, 2.00 fast, at 30 fps`.
 
 ## Develop
 

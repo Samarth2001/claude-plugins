@@ -11,10 +11,12 @@ const DAY = 24 * HOUR
 export const WINDOW_MS: Record<string, number> = { five_hour: 5 * HOUR, seven_day: 7 * DAY }
 export const LIMIT_LABELS: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: 'spend' }
 
+// Rounds before it picks the unit, so 999,950 reads 1M rather than 1000k.
 export function formatTokens(n: number): string {
   const trim = (x: string) => x.replace(/\.0$/, '')
-  if (n >= 1_000_000) return `${trim((n / 1_000_000).toFixed(1))}M`
-  if (n >= 1_000) return `${trim((n / 1_000).toFixed(n >= 100_000 ? 0 : 1))}k`
+  const k = (n / 1_000).toFixed(n >= 100_000 ? 0 : 1)
+  if (Number(k) >= 1_000) return `${trim((n / 1_000_000).toFixed(1))}M`
+  if (Math.round(n) >= 1_000) return `${trim(k)}k`
   return `${Math.round(n)}`
 }
 

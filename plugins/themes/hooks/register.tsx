@@ -37,6 +37,36 @@ const keyOf = (text: string) =>
     .replace(/^-|-$/g, '')
 const specOf = (entry: Entry) => `${entry.plugin}@${entry.marketplace}`
 
+/** Samarth's catalog plugins, which one press of "Install all by Samarth" installs. */
+const OURS = PLUGINS.filter(plugin => entriesOf(plugin).some(entry => entry.author === 'Samarth'))
+
+/** Samarth's plugins neither installed nor waiting on /reload-plugins: what that press installs now. */
+const missingOurs = (found: readonly string[], waiting: readonly string[]) =>
+  OURS.filter(plugin => !found.includes(plugin) && !waiting.includes(plugin))
+
+/** One shell line that installs `entries`: a plain install for one, and a loop over a marketplace's several. */
+function installLine(entries: readonly Entry[]): string {
+  return [...new Set(entries.map(entry => entry.marketplace))]
+    .map(market => {
+      const plugins = entries.filter(entry => entry.marketplace === market).map(entry => entry.plugin)
+      return plugins.length === 1
+        ? `claude plugin install ${plugins[0]}@${market}`
+        : `for p in ${plugins.join(' ')}; do claude plugin install "$p@${market}"; done`
+    })
+    .join('; ')
+}
+
+/** The settings as stored, less any value whose option is no longer one of its theme's choices. */
+function current(stored: ThemeSettings): ThemeSettings {
+  return Object.fromEntries(
+    Object.entries(stored).flatMap(([id, values]) => {
+      const options = entryOf(id)?.options ?? []
+      const known = Object.entries(values).filter(([name]) => options.some(o => o.kind === 'choice' && o.name === name))
+      return known.length === 0 ? [] : [[id, Object.fromEntries(known)]]
+    }),
+  )
+}
+
 /** One line to the debug log: a fault in the picker never reaches the session. */
 function tell($: EngineInterface, step: string, error: unknown): void {
   try {
@@ -242,7 +272,7 @@ async function confirm($: EngineInterface): Promise<void> {
 
 async function install($: EngineInterface, ids: readonly string[]): Promise<void> {
   await enqueue($, async () => {
-    const failed: string[] = []
+    const failed: Entry[] = []
     let reason = ''
     for (const id of ids) {
       const entry = entryOf(id) ?? entriesOf(id)[0]
@@ -250,17 +280,20 @@ async function install($: EngineInterface, ids: readonly string[]): Promise<void
       const fault = await cli($, 'install', specOf(entry))
       if (fault === undefined) await update($, pending, p => [...new Set([...p, entry.plugin])])
       else {
-        failed.push(specOf(entry))
+        failed.push(entry)
         reason = fault
       }
     }
     await note(
       $,
-      failed.length === 0
-        ? 'Installed. Run /reload-plugins to load it.'
-        : `Could not install from here (${reason}). In a shell: ${failed.map(spec => `claude plugin install ${spec}`).join('; ')}`,
+      failed.length === 0 ? 'Installed. Run /reload-plugins to load it.' : `Could not install from here (${reason}). In a shell: ${installLine(failed)}`,
     )
   })
+}
+
+/** Installs each of Samarth's themes that is not installed yet. */
+async function installOurs($: EngineInterface): Promise<void> {
+  await install($, missingOurs(await read($, installed), await read($, pending)))
 }
 
 /** Turns the theme off, deletes what it stored where it can, then uninstalls its plugin. */
@@ -349,7 +382,12 @@ export const register: Register = on => {
     }
     try {
       const stored = await $.store.get('settings')
-      if (stored !== null && typeof stored === 'object') await update($, settings, () => stored as ThemeSettings)
+      if (stored !== null && typeof stored === 'object') {
+        // An option a theme no longer has (Pixel Room's Card on/off, before 0.3.1) is dropped, here and in the store.
+        const known = current(stored as ThemeSettings)
+        await update($, settings, () => known)
+        if (JSON.stringify(known) !== JSON.stringify(stored)) await $.store.set('settings', known)
+      }
     } catch (error) {
       tell($, 'reading settings', error)
     }
@@ -433,13 +471,15 @@ export const register: Register = on => {
 
 async function viewOf($: EngineInterface, b: Band): Promise<View> {
   const found = await read($, installed)
+  const waiting = await read($, pending)
+  const missing = missingOurs(found, waiting)
   return {
     band: b,
     active: await read($, active),
     tiles: tilesOf(found),
-    pending: await read($, pending),
+    pending: waiting,
     settings: await read($, settings),
-    canInstallOurs: !CATALOG.some(entry => entry.author === 'Samarth' && found.includes(entry.plugin)),
+    oursToInstall: missing.length === 0 ? null : missing.length === OURS.length ? 'all' : 'the rest',
   }
 }
 
@@ -454,10 +494,6 @@ function actionsOf($: EngineInterface): Actions {
     confirm: () => void confirm($),
     back: () => void update($, band, x => ({ ...x, confirm: null })),
     install: id => void install($, [id]),
-    installOurs: () =>
-      void install(
-        $,
-        CATALOG.filter(entry => entry.author === 'Samarth').map(entry => entry.id),
-      ),
+    installOurs: () => void installOurs($),
   }
 }

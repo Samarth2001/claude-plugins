@@ -2,6 +2,8 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On, PaneOpenArgs, ThemeSetArgs } from 'claude-code'
 
+import { standsAfter, whereLine, yieldsAtStart } from './register'
+
 // Local times, so the time of day reads the same in any time zone.
 const NOON = new Date(2026, 10, 17, 12).getTime()
 const EVENING = new Date(2026, 10, 17, 21).getTime()
@@ -50,7 +52,7 @@ function engine(on: On, w: World, now = NOON) {
   on('command.register', () => ({ value: { command: 'pixel-room' } }))
   on('theme.set', (_$, e) => {
     w.themes.push(e)
-    return { value: w.isDrawn ? { isDrawn: true, requestId: 'backdrop' } : { isDrawn: false, reason: 'no window draws themes' } } as never
+    return { value: w.isDrawn ? { isDrawn: true, requestId: 'backdrop' } : { isDrawn: false, requestId: 'backdrop', reason: 'no window draws themes' } } as never
   })
   on('theme.clear', () => {
     w.clears += 1
@@ -439,7 +441,8 @@ test('/pixel-room and its words answer as documented', async ($, on) => {
   expect(await run($, '')).toContain('The room is dark: /pixel-room on lights it again.')
 
   expect(await run($, ' ON ')).toBe('Pixel Room is on.')
-  expect(w.store.has('enabled')).toBe(false)
+  // Turned on by name: kept, so the room takes its place at a start even beside another theme.
+  expect(w.store.get('enabled')).toBe(true)
   expect(w.themes).toHaveLength(before + 1)
 
   expect(await run($, 'meow')).toBe(
@@ -461,12 +464,53 @@ test('/pixel-room forget deletes everything it kept, and clears only a theme of 
   expect(w.clears).toBe(1)
 })
 
-test('the summary says when this window draws no backdrops', async ($, on) => {
+test('the summary says why nothing draws the room here', async ($, on) => {
   const w = world()
   w.isDrawn = false
   engine(on, w)
   await $.session.start({ ...start, surface: 'terminal' })
-  expect(await run($, '')).toContain("This window doesn't draw backdrops; the room shows in the desktop and mobile apps.")
+  expect(await run($, '')).toContain('Nothing draws the room here: no window draws themes. It shows in the desktop and mobile apps.')
+})
+
+// Another plugin's theme can't be set from a test (a test's hooks may make only the calls the plugin's
+// own scan lists), so what decides whose theme stands is tested as the plain functions the hooks call.
+test("a set stands when a window draws it or it waits for one; a held or denied set leaves whoever stood", () => {
+  expect(standsAfter(null, 'pixel-room', { isDrawn: true, requestId: 'backdrop' })).toBe('pixel-room')
+  expect(standsAfter('pixel-room', 'silk', { isDrawn: true, requestId: 'backdrop' })).toBe('silk')
+  expect(standsAfter('silk', 'pixel-room', { isDrawn: false, requestId: 'backdrop', reason: 'no window draws themes' })).toBe('pixel-room')
+  expect(standsAfter('silk', 'pixel-room', { isDrawn: false, reason: 'held back' })).toBe('silk')
+  expect(standsAfter('silk', 'pixel-room', undefined)).toBe('silk')
+})
+
+test('the start yields to another theme only while the room was never turned on by name', () => {
+  expect(yieldsAtStart(undefined, 'silk')).toBe(true)
+  expect(yieldsAtStart(true, 'silk')).toBe(false)
+  expect(yieldsAtStart(undefined, null)).toBe(false)
+  expect(yieldsAtStart(undefined, 'pixel-room')).toBe(false)
+})
+
+test("the summary's last line: dark, another theme in the room's place, drawn, held, or waiting for a window", () => {
+  const drawn = { isDrawn: true, requestId: 'backdrop' } as const
+  expect(whereLine({ isOn: false, standing: 'pixel-room', lastSet: drawn })).toBe('The room is dark: /pixel-room on lights it again.')
+  expect(whereLine({ isOn: true, standing: 'silk', lastSet: drawn })).toBe('Another theme is showing: /pixel-room on brings the room back.')
+  expect(whereLine({ isOn: true, standing: 'pixel-room', lastSet: drawn })).toBe('The room is drawn behind this window.')
+  expect(whereLine({ isOn: true, standing: null, lastSet: { isDrawn: false, reason: 'Held back by the themes picker' } })).toBe(
+    "The room isn't drawn: Held back by the themes picker.",
+  )
+  expect(whereLine({ isOn: true, standing: null, lastSet: undefined })).toBeUndefined()
+})
+
+test('once the room is off, a clear, resume or fork leaves the theme alone, and forget clears nothing more', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await run($, 'off')
+  expect(w.clears).toBe(1)
+  const before = w.themes.length
+  await $.classic.SessionStart({ source: 'clear' })
+  expect(w.themes).toHaveLength(before)
+  await run($, 'forget')
+  expect(w.clears).toBe(1)
 })
 
 test('a later session that was turned off or muted stays so', async ($, on) => {

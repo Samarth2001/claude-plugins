@@ -2,6 +2,15 @@
 
 All notable changes to themes. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `themes--v<version>`.
 
+## [0.3.1] - 2026-11-22
+
+### Fixed
+
+- Pixel Room's card is a button, **Open card**, that opens the room card. Since Pixel Room 0.3.0 the card no longer opens by itself and Pixel Room keeps nothing for it, so the picker no longer shows it as on or off or keeps a choice for it, and a choice an earlier version kept is dropped.
+- **Install all by Samarth** shows while any of Samarth's themes is missing, not only while none is installed, and installs only the missing ones. With some installed it reads **Install the rest by Samarth**.
+- Where `claude` can't run from the session, the command to run in a shell is one short line, and a note too long to sit beside the theme has a row of its own and wraps, so it can be read whole.
+- A band short of rows keeps the picked theme's controls, Cancel and Keep, right after the strip, then the theme's name. The desktop header and a long note go first.
+
 ## [0.3.0] - 2026-11-20
 
 ### Added
@@ -43,6 +52,7 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.
 - At a session's start, where the kept theme is on alongside another, the other is turned off.
 
+[0.3.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.3.1
 [0.3.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.3.0
 [0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.1
 [0.2.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.0

@@ -2,6 +2,14 @@
 
 All notable changes to HUD. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `hud--v<version>`.
 
+## [0.1.1] - 2026-11-22
+
+### Fixed
+
+- A subagent's turn no longer resets the main turn: its tool count, clock and cost carry on, and a subagent that runs on after the turn ends no longer leaves the row at `working`.
+- When `/hud` can't be registered (a name clash, a policy), the row still draws and keeps updating; the reason goes to the debug log.
+- Token counts just under a million read `1M`, not `1000k`, and those just under a thousand read `1k`, not `1000`.
+
 ## [0.1.0] - 2026-10-03
 
 Replaces buddy, which is removed from the marketplace. Existing buddy installs move to HUD on their own (Claude Code v2.1.193 or later).
@@ -16,4 +24,5 @@ Replaces buddy, which is removed from the marketplace. Existing buddy installs m
 - A value that just changed glows and fades back; a toast when a plan limit crosses 80% and 95%.
 - `/hud context|limits|cost|turns`, `/hud glance`, `/hud detail`, `/hud hide`, `/hud show`. The open drawer and chart range are remembered across sessions.
 
+[0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/hud--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/hud--v0.1.0

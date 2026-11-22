@@ -1,7 +1,7 @@
 {
   "name": "silk",
   "displayName": "Silk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Graphite satin folding slowly behind the desktop app, drawn on the GPU, its soft sheen steered by your pointer and lifted while Claude works",
   "author": {
     "name": "Samarth Rayar",

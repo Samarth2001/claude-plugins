@@ -2,6 +2,17 @@
 
 All notable changes to light-leak. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `light-leak--v<version>`.
 
+## [0.1.1] - 2026-11-22
+
+### Fixed
+
+- `/light-leak off` and `/light-leak forget` clear the session's theme only while it is Light Leak's, so they no longer take down another theme that showed after it.
+- Installed beside another theme and never turned on by name, Light Leak no longer covers it at every start: it yields to a theme already showing, and `/light-leak on` puts it in place and keeps that choice. While another theme shows, a glass change, a clear, a resume or a fork no longer sets Light Leak over it.
+- `/light-leak` names why it isn't drawn: no window here, another theme showing, or held back by the themes picker, instead of always saying this window draws no backdrops.
+- In a desktop session left open for days, the noise no longer coarsens into blocky patches: the drift now runs on a bounded phase.
+- The shader no longer sweeps through daylight colours at midnight, and a long session's counts no longer burst when they pass 1,023: night and warmth come from the clock as smooth values, and each count turns at its top instead of wrapping.
+- A turn started without a typed message, such as a continuation or a wake-up, no longer plays the message-sent glow.
+
 ## [0.1.0] - 2026-11-20
 
 ### Added
@@ -13,4 +24,5 @@ All notable changes to light-leak. The format follows [Keep a Changelog](https:/
 - The app's colours from the frame: brown-black grays, a soft amber accent, an ochre for warnings, a dusty rose for errors, a sage green for success and a mauve for pro.
 - `/light-leak` says how it stands, with `on`, `off`, `glass clear|soft|frosted` and `forget` to delete what it kept.
 
+[0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/light-leak--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/light-leak--v0.1.0
