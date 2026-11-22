@@ -204,10 +204,12 @@ for (const surface of SURFACES) {
     const ui = await $.ui.mount(BAND(surface))
     await ui.press({ key: 'tile:pixel-room' })
     await ui.select({ key: 'opt:pixel-room:glass', value: 'clear' })
-    await ui.select({ key: 'opt:pixel-room:card', value: 'off' })
     await ui.select({ key: 'opt:pixel-room:sound', value: 'off' })
-    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room glass clear', '/pixel-room card off', '/pixel-room mute'])
-    expect(w.store.get('settings')).toEqual({ 'pixel-room': { glass: 'clear', card: 'off', sound: 'off' } })
+    // Pixel Room's card is a button that opens the room card, and nothing of it is kept.
+    expect(await ui.find({ key: 'opt:pixel-room:card' })).toBeUndefined()
+    await ui.press({ key: 'act:pixel-room:card' })
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room glass clear', '/pixel-room mute', '/pixel-room card'])
+    expect(w.store.get('settings')).toEqual({ 'pixel-room': { glass: 'clear', sound: 'off' } })
     await ui.unmount()
   })
 
@@ -256,7 +258,49 @@ for (const surface of SURFACES) {
     await ui.press({ key: 'install-ours' })
     const ours = ['pixel-room', 'mesh-glow', 'light-leak', 'silk', 'pearl'].map(name => `${name}@samarth`)
     expect(w.argv.map(argv => argv[3])).toEqual(ours)
-    expect(await ui.find({ type: 'Text', text: /claude plugin install pixel-room@samarth; claude plugin install mesh-glow@samarth/ })).toBeDefined()
+    const fallback = await ui.find({
+      type: 'Text',
+      text: 'In a shell: for p in pixel-room mesh-glow light-leak silk pearl; do claude plugin install "$p@samarth"; done',
+    })
+    expect(fallback).toBeDefined()
+    // Too long to sit beside the theme: it has a row of its own, and wraps there rather than being cut off.
+    expect(fallback?.props.wrap).toBeUndefined()
+    await ui.unmount()
+  })
+
+  test(`${surface}: with none of Samarth's themes installed, Install all by Samarth installs all five`, async ($, on) => {
+    const w = world([])
+    engine(on, w)
+    await $.session.start(start)
+    await themes($)
+    const ui = await $.ui.mount(BAND(surface))
+    expect((await ui.find({ key: 'install-ours' }))?.text).toBe('Install all by Samarth')
+    await ui.press({ key: 'install-ours' })
+    expect(w.argv.map(argv => argv[3])).toEqual(['pixel-room', 'mesh-glow', 'light-leak', 'silk', 'pearl'].map(name => `${name}@samarth`))
+    // All five wait on /reload-plugins, so nothing is left to install.
+    expect(await ui.find({ key: 'install-ours' })).toBeUndefined()
+    await ui.unmount()
+  })
+
+  test(`${surface}: with Pixel Room installed, Install the rest by Samarth installs the other four`, async ($, on) => {
+    const w = world(['pixel-room'])
+    engine(on, w)
+    await $.session.start(start)
+    await themes($)
+    const ui = await $.ui.mount(BAND(surface))
+    expect((await ui.find({ key: 'install-ours' }))?.text).toBe('Install the rest by Samarth')
+    await ui.press({ key: 'install-ours' })
+    expect(w.argv.map(argv => argv[3])).toEqual(['mesh-glow', 'light-leak', 'silk', 'pearl'].map(name => `${name}@samarth`))
+    await ui.unmount()
+  })
+
+  test(`${surface}: with all of Samarth's themes installed, the band offers no Install all`, async ($, on) => {
+    const w = world(['pixel-room', 'mesh-glow', 'light-leak', 'silk', 'pearl'])
+    engine(on, w)
+    await $.session.start(start)
+    await themes($)
+    const ui = await $.ui.mount(BAND(surface))
+    expect(await ui.find({ key: 'install-ours' })).toBeUndefined()
     await ui.unmount()
   })
 }
@@ -300,10 +344,55 @@ test('the band yields to a survey, never shows unasked, and keeps to its rows', 
   expect(await survey.find({ type: 'Button' })).toBeUndefined()
   await survey.unmount()
 
-  const short = await $.ui.mount(BAND('terminal', 60, 1))
+  // Two rows of three: the strip, then the picked theme's controls with Cancel and Keep; its name goes.
+  const short = await $.ui.mount(BAND('terminal', 60, 2))
   expect(await short.find({ key: 'tile:pixel-room' })).toBeDefined()
-  expect(await short.find({ key: 'cancel' })).toBeUndefined()
+  expect(await short.find({ key: 'cancel' })).toBeDefined()
+  expect(await short.find({ key: 'keep' })).toBeDefined()
+  expect(await short.find({ type: 'Text', text: 'by Samarth' })).toBeUndefined()
   await short.unmount()
+})
+
+test('a band short of rows keeps its strip, then the controls with Cancel and Keep, then the theme name', async ($, on) => {
+  const w = world()
+  engine(on, w)
+  await $.session.start(start)
+  await themes($)
+  const header = { type: 'Text', text: /^Themes$/ }
+
+  // Narrow, the desktop band draws four rows: the header, the strip, the theme's name, and its controls.
+  const narrow = await $.ui.mount(BAND('desktop', 60, 3))
+  expect(await narrow.find({ key: 'tile:pixel-room' })).toBeDefined()
+  expect(await narrow.find({ key: 'opt:pixel-room:glass' })).toBeDefined()
+  expect(await narrow.find({ key: 'cancel' })).toBeDefined()
+  expect(await narrow.find({ key: 'keep' })).toBeDefined()
+  expect(await narrow.find({ type: 'Text', text: 'by Samarth' })).toBeDefined()
+  expect(await narrow.find(header)).toBeUndefined()
+  expect(await narrow.find({ key: 'install-ours' })).toBeUndefined()
+  await narrow.unmount()
+
+  // Wide, it draws three: the header, the strip, and one line of the theme with its controls.
+  const wide = await $.ui.mount(BAND('desktop', 160, 2))
+  expect(await wide.find({ key: 'tile:pixel-room' })).toBeDefined()
+  expect(await wide.find({ key: 'opt:pixel-room:glass' })).toBeDefined()
+  expect(await wide.find({ key: 'cancel' })).toBeDefined()
+  expect(await wide.find({ key: 'keep' })).toBeDefined()
+  expect(await wide.find(header)).toBeUndefined()
+  await wide.unmount()
+
+  // One row on the terminal: the strip.
+  const terminal = await $.ui.mount(BAND('terminal', 60, 1))
+  expect(await terminal.find({ key: 'tile:pixel-room' })).toBeDefined()
+  expect(await terminal.find({ key: 'cancel' })).toBeUndefined()
+  await terminal.unmount()
+})
+
+test("a start drops a saved option its theme no longer has, such as Pixel Room's old Card on/off", async ($, on) => {
+  const w = world()
+  w.store.set('settings', { 'pixel-room': { glass: 'clear', card: 'off' }, 'mesh-glow': { card: 'on' } })
+  engine(on, w)
+  await $.session.start(start)
+  expect(w.store.get('settings')).toEqual({ 'pixel-room': { glass: 'clear' } })
 })
 
 test('/themes list names every theme with its author; /themes <name> switches from a timer', async ($, on) => {

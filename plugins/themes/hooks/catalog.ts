@@ -43,17 +43,6 @@ export type Entry = {
 
 const SAMARTH = { author: 'Samarth', marketplace: 'samarth' } as const
 
-const onOff = (name: string, label: string, args: (word: 'on' | 'off') => string): Option => ({
-  kind: 'choice',
-  name,
-  label,
-  initial: 'on',
-  values: [
-    { value: 'on', label: 'on', args: args('on') },
-    { value: 'off', label: 'off', args: args('off') },
-  ],
-})
-
 /** How clear the chat sits over the scene: no veil, a light one, or the full frost. */
 const GLASS: Option = {
   kind: 'choice',
@@ -89,7 +78,8 @@ const OURS: readonly Entry[] = [
     forget: 'forget',
     options: [
       GLASS,
-      onOff('card', 'Card', word => `card ${word}`),
+      // The room card opens only when asked, and Pixel Room keeps nothing for it: a button, never a setting.
+      { kind: 'action', name: 'card', label: 'Open card', args: 'card' },
       {
         kind: 'choice',
         name: 'sound',

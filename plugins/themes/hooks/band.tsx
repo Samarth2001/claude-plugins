@@ -16,8 +16,8 @@ export type View = {
   tiles: Tile[]
   pending: readonly string[]
   settings: ThemeSettings
-  /** Whether none of Samarth's themes is installed, so one press can install them all. */
-  canInstallOurs: boolean
+  /** What one press installs of Samarth's themes: all of them, the rest of them, or none, with none missing. */
+  oursToInstall: 'all' | 'the rest' | null
 }
 
 export type Actions = {
@@ -39,6 +39,16 @@ export type Room = { columns: number; maxRows: number; surface: RenderSurface }
 export const TILE_COLUMNS = 16
 // Room the terminal strip keeps for its name, its arrows and the page count.
 const TERMINAL_CHROME = 18
+// The longest note that sits beside the theme; a longer one, such as a command to run in a shell, gets a row.
+const INLINE_NOTE = 48
+
+/**
+ * Which of the band's rows stay when it is short of rows, first to last: the strip, the row with the picked
+ * theme's controls and Cancel and Keep, its name and note, then the desktop header or a long note.
+ */
+// A long note holds the command to run when the band can't, so it outranks the theme's name and the header.
+const KEEP_ORDER = ['strip', 'controls', 'note', 'name', 'header'] as const
+type Row = { kind: (typeof KEEP_ORDER)[number]; element: RenderElement }
 
 /**
  * The band's spacing: between parts of one thing, between things, and between rows. The terminal's is in
@@ -149,8 +159,8 @@ function question(tile: Tile, action: string): string {
   return option?.kind === 'action' ? (option.confirm ?? `${option.label}?`) : 'Go ahead?'
 }
 
-/** What the picked tile offers: its options and Remove, or Install; then Cancel and Keep. */
-function detail(ui: ElementTable, view: View, act: Actions, columns: number, space: Spacing): RenderElement[] {
+/** What the picked tile offers: its options and Remove, or Install; then Cancel and Keep, and a long note last. */
+function detail(ui: ElementTable, view: View, act: Actions, columns: number, space: Spacing): Row[] {
   const { Box, Text, Button } = ui
   const tile = view.tiles.find(t => t.id === view.band.picked)
   const confirm = view.band.confirm
@@ -190,12 +200,17 @@ function detail(ui: ElementTable, view: View, act: Actions, columns: number, spa
   const ends: RenderElement[] = [<Button key="cancel" role="dismiss" label="Cancel" onPress={() => act.cancel()} />]
   if (canKeep) ends.push(<Button key="keep" variant="primary" label="Keep" onPress={() => act.keep()} />)
   const note = view.band.isBusy ? 'Switching…' : view.band.note
+  // A short note sits beside the theme, cut at the edge. A longer one is drawn on its own row after the
+  // controls, the band's full width, and wraps, so a command to run in a shell can be read whole.
+  const long = note !== null && note.length > INLINE_NOTE ? note : null
+  const short = long === null ? note : null
   const noteText =
-    note === null ? null : (
+    short === null ? null : (
       <Text dimColor wrap="truncate">
-        {note}
+        {short}
       </Text>
     )
+  const noteRow: Row[] = long === null ? [] : [{ kind: 'note', element: <Text dimColor>{long}</Text> }]
   const right = (
     <Box flexDirection="row" alignItems="center" gap={space.near}>
       {noteText}
@@ -206,30 +221,54 @@ function detail(ui: ElementTable, view: View, act: Actions, columns: number, spa
   // Wide: one line, the theme and its controls at the left, the note, Cancel and Keep at the right.
   if (columns >= 100) {
     return [
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={space.apart}>
-        <Box flexDirection="row" alignItems="center" gap={space.apart}>
-          {name}
-          {middle}
-        </Box>
-        {right}
-      </Box>,
+      {
+        kind: 'controls',
+        element: (
+          <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={space.apart}>
+            <Box flexDirection="row" alignItems="center" gap={space.apart}>
+              {name}
+              {middle}
+            </Box>
+            {right}
+          </Box>
+        ),
+      },
+      ...noteRow,
     ]
   }
   // Narrow: the theme and the note on one line, then its controls, with Cancel and Keep still at the right.
   return [
-    <Box flexDirection="row" alignItems="center" gap={space.apart}>
-      {name}
-      {noteText}
-    </Box>,
-    <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" columnGap={space.apart} rowGap={space.near}>
-      <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={space.apart} rowGap={space.near}>
-        {middle}
-      </Box>
-      <Box flexDirection="row" alignItems="center" gap={space.near}>
-        {ends}
-      </Box>
-    </Box>,
+    {
+      kind: 'name',
+      element: (
+        <Box flexDirection="row" alignItems="center" gap={space.apart}>
+          {name}
+          {noteText}
+        </Box>
+      ),
+    },
+    {
+      kind: 'controls',
+      element: (
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" columnGap={space.apart} rowGap={space.near}>
+          <Box flexDirection="row" alignItems="center" flexWrap="wrap" columnGap={space.apart} rowGap={space.near}>
+            {middle}
+          </Box>
+          <Box flexDirection="row" alignItems="center" gap={space.near}>
+            {ends}
+          </Box>
+        </Box>
+      ),
+    },
+    ...noteRow,
   ]
+}
+
+/** At most `maxRows` of `rows`, dropped from the last in KEEP_ORDER up; those kept stay in the order drawn. */
+function fit(rows: readonly Row[], maxRows: number): RenderElement[] {
+  const rank = (row: Row) => KEEP_ORDER.indexOf(row.kind)
+  const kept = new Set([...rows].sort((a, b) => rank(a) - rank(b)).slice(0, maxRows))
+  return rows.filter(row => kept.has(row)).map(row => row.element)
 }
 
 /** The whole band, sized to `room`, its rows held to `room.maxRows`. */
@@ -238,43 +277,59 @@ export function drawBand(ui: ElementTable, view: View, act: Actions, room: Room)
   const { pages: all, index, tiles, isPictures } = layout(view, room)
   const count = all.length
   const pageText = count > 1 ? `${index + 1}/${count}` : ''
-  const install = view.canInstallOurs ? [<Button key="install-ours" dimColor label="Install all by Samarth" onPress={() => act.installOurs()} />] : []
+  const ours = view.oursToInstall
+  const install =
+    ours === null ? [] : [<Button key="install-ours" dimColor label={`Install ${ours} by Samarth`} onPress={() => act.installOurs()} />]
 
   const space = isPictures ? STEPS : CELLS
-  const rows: RenderElement[] = []
+  const rows: Row[] = []
   if (isPictures) {
     const desktop = ui as ElementTable<'desktop'>
     rows.push(
-      <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={space.apart}>
-        <Text bold>Themes</Text>
-        <Box flexDirection="row" alignItems="center" gap={space.apart}>
-          {install}
-          <Box flexDirection="row" alignItems="center" gap={space.near}>
-            {pager(ui, count, index, act)}
+      {
+        kind: 'header',
+        element: (
+          <Box flexDirection="row" justifyContent="space-between" alignItems="center" columnGap={space.apart}>
+            <Text bold>Themes</Text>
+            <Box flexDirection="row" alignItems="center" gap={space.apart}>
+              {install}
+              <Box flexDirection="row" alignItems="center" gap={space.near}>
+                {pager(ui, count, index, act)}
+              </Box>
+            </Box>
           </Box>
-        </Box>
-      </Box>,
-      // A cell between tiles, in cells on every surface: the pages are counted in TILE_COLUMNS.
-      <Box flexDirection="row" gap={1}>
-        {tiles.map(tile => pictureTile(desktop, tile, view, act))}
-      </Box>,
+        ),
+      },
+      {
+        kind: 'strip',
+        element: (
+          // A cell between tiles, in cells on every surface: the pages are counted in TILE_COLUMNS.
+          <Box flexDirection="row" gap={1}>
+            {tiles.map(tile => pictureTile(desktop, tile, view, act))}
+          </Box>
+        ),
+      },
     )
   } else {
     const [prev, next] = arrows(ui, count, index, act)
-    rows.push(
-      <Box flexDirection="row" gap={2}>
-        <Text bold>Themes</Text>
-        {prev ?? null}
-        {textTiles(ui, tiles, view, act)}
-        {next ?? null}
-        {pageText === '' ? null : <Text dimColor>{pageText}</Text>}
-        {install}
-      </Box>,
-    )
+    rows.push({
+      kind: 'strip',
+      element: (
+        <Box flexDirection="row" gap={2}>
+          <Text bold>Themes</Text>
+          {prev ?? null}
+          {textTiles(ui, tiles, view, act)}
+          {next ?? null}
+          {pageText === '' ? null : <Text dimColor>{pageText}</Text>}
+          {install}
+        </Box>
+      ),
+    })
   }
   rows.push(...detail(ui, view, act, room.columns, space))
-  // Short of rows: the strip and the picked tile's controls stay; a desktop header goes first.
-  const kept = rows.length <= room.maxRows ? rows : isPictures ? rows.slice(1, 1 + Math.max(1, room.maxRows - 1)) : rows.slice(0, Math.max(1, room.maxRows))
+  // Short of rows: the strip stays, then the picked theme's controls with Cancel and Keep, then its name; the
+  // desktop header and a long note go first.
+  const kept = fit(rows, room.maxRows)
   return (
     <Box flexDirection="column" width={room.columns} rowGap={isPictures ? space.rows : 0}>
       {kept}
