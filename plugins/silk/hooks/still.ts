@@ -102,4 +102,4 @@ export function stillSvg(isNight: boolean): string {
 }
 
 /** One plain sentence about the picture, the same at every hour. */
-export const STILL_ALT = 'Dark graphite satin in long, soft folds, sweeping in an arc from the lower left up across the top'
+export const STILL_ALT = 'Dark graphite satin in long, soft folds, sweeping in an arc from the lower left up across the top.'
