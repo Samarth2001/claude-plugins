@@ -28,5 +28,5 @@ test('the same hour draws the same frame', () => {
 })
 
 test('the description is one plain sentence', () => {
-  expect(STILL_ALT).toMatch(/^[A-Z][^.]*[a-z]$/)
+  expect(STILL_ALT).toMatch(/^[A-Z][^.]*[a-z]\.$/)
 })

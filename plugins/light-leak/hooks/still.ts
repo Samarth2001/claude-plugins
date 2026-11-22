@@ -93,4 +93,4 @@ export function stillSvg(isNight: boolean): string {
   ].join('')
 }
 
-export const STILL_ALT = 'Warm amber light seeping in at the lower left corner of a dark film frame, with a fainter glow along the right edge'
+export const STILL_ALT = 'Warm amber light seeping in at the lower left corner of a dark film frame, with a fainter glow along the right edge.'
