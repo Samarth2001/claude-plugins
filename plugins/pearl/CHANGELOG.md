@@ -2,6 +2,12 @@
 
 All notable changes to pearl. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pearl--v<version>`.
 
+## [0.1.2] - 2026-11-23
+
+### Fixed
+
+- Trying Pearl or changing its glass from the themes picker no longer adds a `/pearl` line and its reply to the chat. It hears the picker through the picker's own state and acts on its request directly; `/pearl` typed by hand works as before.
+
 ## [0.1.1] - 2026-11-22
 
 ### Fixed
@@ -25,5 +31,6 @@ All notable changes to pearl. The format follows [Keep a Changelog](https://keep
 - App colours from the sheen's own numbers: cool grays with a trace of lilac, a pale pearl-lilac accent, a rose red, a jade, a copper amber and a quiet violet.
 - `/pearl` says how it stands. `on` and `off` turn it on and off, `glass clear`, `soft` or `frosted` sets how much veil sits between the sheen and the chat (soft is the default), and `forget` deletes its settings, for a clean removal. Only the off switch and the glass are stored.
 
+[0.1.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/pearl--v0.1.2
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pearl--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pearl--v0.1.0
