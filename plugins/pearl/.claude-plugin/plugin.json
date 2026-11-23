@@ -1,7 +1,7 @@
 {
   "name": "pearl",
   "displayName": "Pearl",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A muted pearly sheen drifting over near-black behind the desktop app, drawn on the GPU, swirling under your pointer and spreading in soft rings as Claude works",
   "author": {
     "name": "Samarth Rayar",

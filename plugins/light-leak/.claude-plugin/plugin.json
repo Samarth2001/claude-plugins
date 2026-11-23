@@ -1,7 +1,7 @@
 {
   "name": "light-leak",
   "displayName": "Light Leak",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Warm light seeping into a dark film frame behind the desktop app, with still grain and an amber glow on the GPU that breathes with Claude's work",
   "author": {
     "name": "Samarth Rayar",

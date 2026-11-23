@@ -1,7 +1,7 @@
 {
   "name": "mesh-glow",
   "displayName": "Mesh Glow",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A quiet colour field behind the desktop app: deep slate, teal and plum drifting slowly on the GPU, with a low warm light at the prompt that lifts while Claude works",
   "author": {
     "name": "Samarth Rayar",

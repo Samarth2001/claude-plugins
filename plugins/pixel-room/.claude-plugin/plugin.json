@@ -1,7 +1,7 @@
 {
   "name": "pixel-room",
   "displayName": "Pixel Room",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "A late-night pixel room behind the desktop app: the day's weather and the moon at the window, a lamp that lights at dusk and a cat you can pet that sleeps, paces and watches while Claude works, with notes for its todo list, moths for its subagents and a room card in the same voice",
   "author": { "name": "Samarth Rayar", "url": "https://github.com/Samarth2001" },
   "homepage": "https://github.com/Samarth2001/claude-plugins/tree/main/plugins/pixel-room",

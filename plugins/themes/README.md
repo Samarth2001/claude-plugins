@@ -43,15 +43,15 @@ The band steps aside while a survey holds that space and keeps to the rows it is
 
 ## What each action runs
 
-The picker draws no theme itself. It runs each theme's own slash command, the same words you could type. Their replies are kept out of the transcript; an option's or an action's reply shows in the band instead.
+The picker draws no theme itself. It asks each theme for the same words you could type after its command. Samarth's themes hear the picker through its own state, so a pick or an option changes them with no line in the transcript, and the band says what was set. Anthropic's scenes have only their slash command, which the picker runs as you would, so it shows in the transcript.
 
 | Action | Runs |
 | --- | --- |
-| Try or keep one of Samarth's themes | `/<theme> off` for the theme that was on, then `/<theme> on` |
+| Try or keep one of Samarth's themes | `off` for the theme that was on, then `on`, asked of each theme directly |
 | Try an Anthropic scene | `/<theme> off` for the theme that was on, then `/custom-theme <scene> session` |
 | Keep an Anthropic scene | `/custom-theme <scene>` for this project, or `/custom-theme <scene> session` |
-| Change an option | The theme's command with that word: `/pixel-room glass clear`, `/pixel-room mute`, `/silk glass frosted` |
-| Open card | `/pixel-room card`, which opens Pixel Room's room card; nothing is kept |
+| Change an option | That word, asked of the theme directly: `glass clear`, `mute`, as `/pixel-room glass clear` or `/silk glass frosted` would |
+| Open card | `card`, asked of Pixel Room, which opens its room card; nothing is kept |
 | Install | `claude plugin install <plugin>@<marketplace>` on your machine |
 | Remove | `/<theme> off` if it is on, then `/<theme> forget` for Samarth's themes, then `claude plugin uninstall <plugin>@<marketplace>` |
 
@@ -84,7 +84,8 @@ A theme that follows this repo's convention also takes `glass clear|soft|frosted
 - A held theme still counts itself on in its own settings; it is only held while this plugin is installed and a theme is kept. Uninstall the picker and every installed theme that is on draws again at the next start.
 - Anthropic's scene list is written into the catalog from `theme-examples` 0.4.3. A scene it adds later shows up once it is added to the catalog, and one it renames stops switching until the catalog follows.
 - Pictures on the tiles are the picker's own small drawings, not the themes' live scenes. Anthropic's scenes show as a swatch of their glass tint, softly lit, with a faint line of chat and the prompt box over it.
-- Claude Code runs a command a plugin asks for once the session is idle, so a pick made during a turn takes effect when the turn ends.
+- Anthropic's scenes are switched by running `/custom-theme`, so each pick of one shows its command and reply in the transcript, and it takes effect once the session is idle. Samarth's themes change at once, with nothing in the transcript.
+- Samarth's themes hear the picker from Pixel Room 0.3.2, and Mesh Glow, Light Leak, Silk and Pearl 0.1.2. An older one ignores the picker's requests: update it with `claude plugin update <theme>@samarth`.
 
 ## Develop
 

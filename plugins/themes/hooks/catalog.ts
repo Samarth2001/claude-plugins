@@ -37,6 +37,11 @@ export type Entry = {
   forget?: string
   /** One tile in place of every entry of this plugin while it is not installed. */
   group?: { title: string }
+  /**
+   * True for a theme that hears the picker through its state (`themes.ask`): the picker asks it with no line in
+   * the transcript. Any other theme is driven by its slash command, which the transcript shows.
+   */
+  hearsPicker?: true
   options: readonly Option[]
   thumbnail: Thumbnail
 }
@@ -59,6 +64,7 @@ const backdrop = (id: Art, title: string): Entry => ({
   ...SAMARTH,
   plugin: id,
   command: id,
+  hearsPicker: true,
   on: 'on',
   off: 'off',
   forget: 'forget',
@@ -73,6 +79,7 @@ const OURS: readonly Entry[] = [
     ...SAMARTH,
     plugin: 'pixel-room',
     command: 'pixel-room',
+    hearsPicker: true,
     on: 'on',
     off: 'off',
     forget: 'forget',

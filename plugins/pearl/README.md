@@ -38,7 +38,7 @@ Subagents' turns and tool calls leave it alone.
 
 One theme shows at a time. Installed beside another theme and never turned on by name, Pearl leaves the other one showing; `/pearl on` puts it in place and keeps that choice for later sessions. `off` and `forget` clear the session's theme only while it is Pearl's, so they never take another theme down.
 
-The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option.
+The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option. The picker asks it directly, so trying it or changing its glass there leaves no lines in the chat.
 
 ## Where it shows
 

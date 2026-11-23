@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On, ThemeSetArgs } from 'claude-code'
 
-import { bounce, skyAt, standsAfter, statusOf, yieldsAtStart } from './register'
+import { askedOf, bounce, skyAt, standsAfter, statusOf, yieldsAtStart } from './register'
 
 // Local times, so the hour reads the same in any time zone.
 const NOON = new Date(2026, 10, 20, 12).getTime()
@@ -134,6 +134,17 @@ test('the status names another theme in its place, or no theme at all', () => {
   expect(statusOf({ isOn: true, standing: 'other', lastSet: undefined })).toBe('Light Leak is on, but another theme is showing. /light-leak on brings it back.')
   expect(statusOf({ isOn: true, standing: null, lastSet: drawn })).toBe('Light Leak is on, but no theme is showing. /light-leak on brings it back.')
   expect(statusOf({ isOn: false, standing: 'other', lastSet: drawn })).toBe('Light Leak is off. /light-leak on brings it back.')
+})
+
+test("the themes picker's requests: a write of its ask that names this theme carries the words to run", () => {
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: { id: 3, plugin: 'light-leak', words: 'glass clear' } })).toBe('glass clear')
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: { id: 4, plugin: 'light-leak', words: 'on' } })).toBe('on')
+  // Asked of another theme, another of the picker's values, another plugin's value, or nothing yet.
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: { id: 5, plugin: 'someone-else', words: 'on' } })).toBeUndefined()
+  expect(askedOf({ plugin: 'themes', key: 'band', value: { plugin: 'light-leak', words: 'on' } })).toBeUndefined()
+  expect(askedOf({ plugin: 'someone-else', key: 'ask', value: { plugin: 'light-leak', words: 'on' } })).toBeUndefined()
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: null })).toBeUndefined()
+  expect(askedOf(null)).toBeUndefined()
 })
 
 test('/light-leak says whether it is drawn here, and the glass', async ($, on) => {

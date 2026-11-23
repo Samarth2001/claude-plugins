@@ -39,7 +39,7 @@ Only the main conversation moves it: subagents' turns and tool calls leave it al
 
 One theme shows at a time. Installed beside another theme and never turned on by name, Silk leaves the other one showing; `/silk on` puts it in place and keeps that choice for later sessions. `off` and `forget` clear the session's theme only while it is Silk's, so they never take another theme down.
 
-The themes picker, `/themes` from the [`themes`](../themes) plugin, shows it beside the other themes with a Glass option.
+The themes picker, `/themes` from the [`themes`](../themes) plugin, shows it beside the other themes with a Glass option. The picker asks it directly, so trying it or changing its glass there leaves no lines in the chat.
 
 ## Where it shows
 
