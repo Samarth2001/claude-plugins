@@ -40,7 +40,7 @@ Only the main conversation moves it: subagents' turns and tool calls change noth
 
 One theme shows at a time. Installed beside another theme and never turned on by name, Light Leak leaves the other one showing; `/light-leak on` puts it in place and keeps that choice for later sessions. `off` and `forget` clear the session's theme only while it is Light Leak's, so they never take another theme down.
 
-The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option.
+The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option. The picker asks it directly, so trying it or changing its glass there leaves no lines in the chat.
 
 ## Where it shows
 

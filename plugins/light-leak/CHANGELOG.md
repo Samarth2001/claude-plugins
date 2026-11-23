@@ -2,6 +2,12 @@
 
 All notable changes to light-leak. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `light-leak--v<version>`.
 
+## [0.1.2] - 2026-11-23
+
+### Fixed
+
+- Trying Light Leak or changing its glass from the themes picker no longer adds a `/light-leak` line and its reply to the chat. It hears the picker through the picker's own state and acts on its request directly; `/light-leak` typed by hand works as before.
+
 ## [0.1.1] - 2026-11-22
 
 ### Fixed
@@ -24,5 +30,6 @@ All notable changes to light-leak. The format follows [Keep a Changelog](https:/
 - The app's colours from the frame: brown-black grays, a soft amber accent, an ochre for warnings, a dusty rose for errors, a sage green for success and a mauve for pro.
 - `/light-leak` says how it stands, with `on`, `off`, `glass clear|soft|frosted` and `forget` to delete what it kept.
 
+[0.1.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/light-leak--v0.1.2
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/light-leak--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/light-leak--v0.1.0
