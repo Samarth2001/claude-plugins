@@ -7,7 +7,7 @@ import { CATALOG, PLUGINS, entriesOf, entryOf } from './catalog'
 import type { Entry } from './catalog'
 import { COMMANDS, activeOf, isHeld, keepRuns, offs, switchRuns, tilesOf, turnsOnBy } from './plan'
 import type { Run } from './plan'
-import type { Band, ThemeSettings } from '../types'
+import type { Ask, Band, ThemeSettings } from '../types'
 
 const PLUGIN = 'themes'
 const HELD = 'Held back by the themes picker: another theme is kept.'
@@ -21,6 +21,7 @@ const lit = atom({ plugin: 'themes', key: 'lit' } as const, [] as string[])
 const installed = atom({ plugin: 'themes', key: 'installed' } as const, [] as string[])
 const pending = atom({ plugin: 'themes', key: 'pending' } as const, [] as string[])
 const settings = atom({ plugin: 'themes', key: 'settings' } as const, {} as ThemeSettings)
+const ask = atom({ plugin: 'themes', key: 'ask' } as const, null as Ask | null)
 
 // The module's own: what a theme's command printed when the picker ran it (kept out of the transcript),
 // the chain that runs the picker's steps one at a time, and the themes turned on since the module loaded:
@@ -115,14 +116,23 @@ function enqueue($: EngineInterface, work: () => Promise<void>): Promise<void> {
   return step
 }
 
-/** Runs one theme command as the person typing it would, and answers what it printed. */
+/**
+ * Runs one theme command and answers what it printed. A theme that hears the picker is asked through the
+ * picker's own state, which it acts on at once with no line in the transcript, and answers nothing; any other
+ * runs as the person typing it would.
+ */
 async function runOne($: EngineInterface, run: Run): Promise<string | undefined> {
-  const key = `${run.command} ${run.args}`
   if (run.turnsOn !== undefined) allowed.add(run.plugin)
-  said.delete(key)
-  const out = await $.command.run({ command: run.command, args: run.args })
-  const text = said.has(key) ? said.get(key) : out.text
-  said.delete(key)
+  let text: string | undefined
+  if (entriesOf(run.plugin)[0]?.hearsPicker === true) {
+    await update($, ask, last => ({ id: (last?.id ?? 0) + 1, plugin: run.plugin, words: run.args }))
+  } else {
+    const key = `${run.command} ${run.args}`
+    said.delete(key)
+    const out = await $.command.run({ command: run.command, args: run.args })
+    text = said.has(key) ? said.get(key) : out.text
+    said.delete(key)
+  }
   // The theme's own set and clear tell the band too; this keeps it right where no window draws themes.
   if (run.isOff) {
     await update($, lit, plugins => plugins.filter(p => p !== run.plugin))
@@ -240,7 +250,9 @@ async function choose($: EngineInterface, id: string, name: string, value: strin
   await $.store.set('settings', next).catch(error => tell($, 'keeping settings', error))
   if (option.isOnKeep === true || !(await read($, installed)).includes(entry.plugin)) return
   await enqueue($, async () => {
-    await note($, (await runOne($, { command: entry.command, args: choice.args, plugin: entry.plugin, isOff: false })) ?? null)
+    // A theme that hears the picker answers nothing, so the band says what was set.
+    const said = await runOne($, { command: entry.command, args: choice.args, plugin: entry.plugin, isOff: false })
+    await note($, said ?? `${option.label}: ${choice.label}`)
   })
 }
 

@@ -10,8 +10,10 @@ type World = {
   store: Map<string, unknown>
   /** Plugins whose commands the session lists. */
   plugins: string[]
-  /** Every theme command run, as `/<command> <args>`. */
+  /** Every theme command run, as `/<command> <args>`: a slash command, or a request to a theme that hears the picker. */
   runs: string[]
+  /** The slash commands alone, which the transcript shows. */
+  commands: string[]
   /** Every host command run, by its argv. */
   argv: string[][]
   /** The exit code the host's commands answer. */
@@ -22,6 +24,7 @@ const world = (plugins: string[] = ['pixel-room']): World => ({
   store: new Map(),
   plugins,
   runs: [],
+  commands: [],
   argv: [],
   exitCode: 0,
 })
@@ -41,7 +44,14 @@ function engine(on: On, w: World) {
   }))
   on('command.run', (_$, e) => {
     w.runs.push(`/${e.command} ${e.args}`.trim())
+    w.commands.push(`/${e.command} ${e.args}`.trim())
     return { text: `${e.command} did ${e.args}` }
+  })
+  // Samarth's themes hear the picker through its state: each request is recorded as the command it stands for.
+  on('state.set', async (_$, e, next) => {
+    const write = e as unknown as { plugin: string; key: string; value: { plugin: string; words: string } | null }
+    if (write.plugin === 'themes' && write.key === 'ask' && write.value !== null) w.runs.push(`/${write.value.plugin} ${write.value.words}`.trim())
+    return next(e)
   })
   on('process.run', (_$, e) => {
     w.argv.push([...e.argv])
@@ -136,6 +146,25 @@ for (const surface of SURFACES) {
     // Picking the theme that is already on runs nothing.
     await ui.press({ key: 'tile:honu-lagoon' })
     expect(w.runs).toHaveLength(3)
+    await ui.unmount()
+  })
+
+  test(`${surface}: Samarth's themes are asked through the picker's state, never by a slash command in the transcript`, async ($, on) => {
+    const w = world(['pixel-room', 'silk', 'theme-examples'])
+    engine(on, w)
+    await $.session.start(start)
+    await themes($)
+    const ui = await $.ui.mount(BAND(surface, 1000))
+    await ui.press({ key: 'tile:pixel-room' })
+    await ui.press({ key: 'tile:silk' })
+    await ui.select({ key: 'opt:silk:glass', value: 'clear' })
+    expect(w.runs).toEqual(['/pixel-room on', '/pixel-room off', '/silk on', '/silk glass clear'])
+    expect(w.commands).toEqual([])
+    // The theme answers nothing, so the band says what was set.
+    expect(await ui.find({ type: 'Text', text: 'Glass: clear' })).toBeDefined()
+    // Anthropic's scenes have only their command, which the transcript shows.
+    await ui.press({ key: 'tile:honu-lagoon' })
+    expect(w.commands).toEqual(['/custom-theme honu-lagoon session'])
     await ui.unmount()
   })
 

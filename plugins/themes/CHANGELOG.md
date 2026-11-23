@@ -2,6 +2,12 @@
 
 All notable changes to themes. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `themes--v<version>`.
 
+## [0.3.2] - 2026-11-23
+
+### Fixed
+
+- Picking one of Samarth's themes or changing its options no longer fills the chat with `/<theme>` lines and their replies. The picker asks those themes through its own state instead of running their slash commands, and the band says what was set. This needs Pixel Room 0.3.2 and Mesh Glow, Light Leak, Silk and Pearl 0.1.2 or later. Anthropic's scenes still switch by their command, which the transcript shows.
+
 ## [0.3.1] - 2026-11-22
 
 ### Fixed
@@ -52,6 +58,7 @@ All notable changes to themes. The format follows [Keep a Changelog](https://kee
 - `/themes <name>` switches and keeps a theme, `/themes list` lists them with their authors, and `/themes off` turns the theme off.
 - At a session's start, where the kept theme is on alongside another, the other is turned off.
 
+[0.3.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.3.2
 [0.3.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.3.1
 [0.3.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.3.0
 [0.2.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/themes--v0.2.1

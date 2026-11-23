@@ -18,6 +18,13 @@ export type Band = {
 /** Each theme's options as last chosen from the picker: theme id, option name, value. */
 export type ThemeSettings = Record<string, Record<string, string>>
 
+/**
+ * A request to one of Samarth's themes: the plugin, and the words its own command takes (`on`, `glass clear`),
+ * numbered so each one is new. Each of those themes hooks `state.set` on this value and acts on the words it
+ * is named in, so a pick or an option changes the theme with no line in the transcript.
+ */
+export type Ask = { id: number; plugin: string; words: string }
+
 declare module 'claude-code' {
   interface PluginState {
     themes: {
@@ -31,6 +38,8 @@ declare module 'claude-code' {
       /** Plugins installed or removed from the picker, waiting for /reload-plugins. */
       pending: string[]
       settings: ThemeSettings
+      /** The latest request to one of Samarth's themes; null before the first. */
+      ask: Ask | null
     }
   }
 }
