@@ -38,7 +38,7 @@ Subagents' turns and tool calls leave it as it is. A turn you stop settles witho
 
 One theme shows at a time. Installed beside another theme and never turned on by name, Mesh Glow leaves the other one showing; `/mesh-glow on` puts it in place and keeps that choice for later sessions. `off` and `forget` clear the session's theme only while it is Mesh Glow's, so they never take another theme down.
 
-The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option.
+The [`themes`](../themes) picker (`/themes`) shows it beside the other themes, with a Glass option. The picker asks it directly, so trying it or changing its glass there leaves no lines in the chat.
 
 ## Where it shows
 

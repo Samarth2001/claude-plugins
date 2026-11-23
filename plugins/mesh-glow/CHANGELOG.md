@@ -2,6 +2,12 @@
 
 All notable changes to mesh-glow. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `mesh-glow--v<version>`.
 
+## [0.1.2] - 2026-11-23
+
+### Fixed
+
+- Trying Mesh Glow or changing its glass from the themes picker no longer adds a `/mesh-glow` line and its reply to the chat. It hears the picker through the picker's own state and acts on its request directly; `/mesh-glow` typed by hand works as before.
+
 ## [0.1.1] - 2026-11-22
 
 ### Fixed
@@ -24,5 +30,6 @@ All notable changes to mesh-glow. The format follows [Keep a Changelog](https://
 - The app's colours in blue-slate grays from the field, with a steel-teal accent and a warning amber from the warm light.
 - `/mesh-glow`, with `on`, `off`, `glass clear|soft|frosted` and `forget`.
 
+[0.1.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/mesh-glow--v0.1.2
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/mesh-glow--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/mesh-glow--v0.1.0
