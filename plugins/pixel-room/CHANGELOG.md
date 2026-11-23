@@ -2,6 +2,12 @@
 
 All notable changes to pixel-room. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `pixel-room--v<version>`.
 
+## [0.3.2] - 2026-11-23
+
+### Fixed
+
+- Switching to the room, changing its glass or sound, or opening its card from the themes picker no longer adds a `/pixel-room` line and its reply to the chat. The room hears the picker through the picker's own state and acts on its request directly; `/pixel-room` typed by hand works as before.
+
 ## [0.3.1] - 2026-11-22
 
 ### Fixed
@@ -95,6 +101,7 @@ All notable changes to pixel-room. The format follows [Keep a Changelog](https:/
   Only those three settings are stored.
 - Square and tall windows move the window and the desk toward the middle. Reduced motion shows the room and the card still.
 
+[0.3.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.3.2
 [0.3.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.3.1
 [0.3.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.3.0
 [0.2.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/pixel-room--v0.2.2

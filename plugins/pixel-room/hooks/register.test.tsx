@@ -2,7 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On, PaneOpenArgs, ThemeSetArgs } from 'claude-code'
 
-import { standsAfter, whereLine, yieldsAtStart } from './register'
+import { askedOf, standsAfter, whereLine, yieldsAtStart } from './register'
 
 // Local times, so the time of day reads the same in any time zone.
 const NOON = new Date(2026, 10, 17, 12).getTime()
@@ -480,6 +480,15 @@ test("a set stands when a window draws it or it waits for one; a held or denied 
   expect(standsAfter('silk', 'pixel-room', { isDrawn: false, requestId: 'backdrop', reason: 'no window draws themes' })).toBe('pixel-room')
   expect(standsAfter('silk', 'pixel-room', { isDrawn: false, reason: 'held back' })).toBe('silk')
   expect(standsAfter('silk', 'pixel-room', undefined)).toBe('silk')
+})
+
+test("the themes picker's requests: a write of its ask that names the room carries the words to run", () => {
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: { id: 1, plugin: 'pixel-room', words: 'glass clear' } })).toBe('glass clear')
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: { id: 2, plugin: 'pixel-room', words: 'card' } })).toBe('card')
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: { id: 3, plugin: 'silk', words: 'on' } })).toBeUndefined()
+  expect(askedOf({ plugin: 'themes', key: 'band', value: { plugin: 'pixel-room', words: 'on' } })).toBeUndefined()
+  expect(askedOf({ plugin: 'pixel-room', key: 'card', value: {} })).toBeUndefined()
+  expect(askedOf({ plugin: 'themes', key: 'ask', value: null })).toBeUndefined()
 })
 
 test('the start yields to another theme only while the room was never turned on by name', () => {
