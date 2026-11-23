@@ -95,6 +95,17 @@ export function yieldsAtStart(enabled: unknown, standingNow: string | null): boo
   return enabled === undefined && standingNow !== null && standingNow !== PLUGIN
 }
 
+/**
+ * The words the themes picker asks of this theme, when `write` is a write of the picker's `ask` value that
+ * names it (`{ id, plugin, words }`); undefined for any other write.
+ */
+export function askedOf(write: unknown): string | undefined {
+  const w = write as { plugin?: unknown; key?: unknown; value?: unknown } | null
+  if (w === null || w.plugin !== 'themes' || w.key !== 'ask') return undefined
+  const ask = w.value as { plugin?: unknown; words?: unknown } | null
+  return ask !== null && ask.plugin === PLUGIN && typeof ask.words === 'string' ? ask.words : undefined
+}
+
 /** How it stands: off, drawn, not drawn here and why, or another theme in its place. */
 export function statusOf(view: { isOn: boolean; standing: string | null; lastSet: ThemeResult | undefined }): string {
   const { isOn: on, standing: by, lastSet: set } = view
@@ -175,6 +186,20 @@ export const register: Register = on => {
   on('theme.clear', async ($, e, next) => {
     const out = await next(e)
     standing = null
+    return out
+  }).catch(($, e, next) => next(e))
+
+  // The themes picker asks through its own state, never a slash command: a write of its `ask` that names this
+  // plugin carries the words `/silk` takes, run here with no line in the transcript. From a timer, so the
+  // picker's write never waits on this theme's own set or clear.
+  on('state.set', async ($, e, next) => {
+    const out = await next(e)
+    const words = askedOf(e)
+    if (words !== undefined) {
+      $.clock.after(0, () => {
+        command($, words).catch(error => tell($, 'a request from the themes picker', error))
+      })
+    }
     return out
   }).catch(($, e, next) => next(e))
 

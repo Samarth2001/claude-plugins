@@ -2,6 +2,12 @@
 
 All notable changes to silk. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). Each release is tagged `silk--v<version>`.
 
+## [0.1.2] - 2026-11-23
+
+### Fixed
+
+- Trying Silk or changing its glass from the themes picker no longer adds a `/silk` line and its reply to the chat. It hears the picker through the picker's own state and acts on its request directly; `/silk` typed by hand works as before.
+
 ## [0.1.1] - 2026-11-22
 
 ### Fixed
@@ -24,5 +30,6 @@ All notable changes to silk. The format follows [Keep a Changelog](https://keepa
 - A dark palette of graphite grays with a faint cool tint, a silver-blue accent and muted roles, set when a session starts.
 - `/silk` with `on`, `off`, `glass clear|soft|frosted` and `forget`.
 
+[0.1.2]: https://github.com/Samarth2001/claude-plugins/releases/tag/silk--v0.1.2
 [0.1.1]: https://github.com/Samarth2001/claude-plugins/releases/tag/silk--v0.1.1
 [0.1.0]: https://github.com/Samarth2001/claude-plugins/releases/tag/silk--v0.1.0
